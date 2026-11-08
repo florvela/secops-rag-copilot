@@ -22,6 +22,9 @@
     "threshold": 0.5,
     "max_tokens_segment": 512
   },
+  "orchestration": {
+    "max_iterations": 2
+  },
   "eval": {
     "ks": [5, 10]
   }

@@ -1,0 +1,23 @@
+{
+  "severity": "HIGH",
+  "description": "Detects a successful console sign-in that did not use MFA.",
+  "resolution": "Require MFA for the user. Review the source IP and user agent. Rotate the password if the sign-in was not expected.",
+  "mitre_techniques": ["T1078.004"],
+  "matched_event": {
+    "actor_user_name": "dana.ops",
+    "actor_user_type": "IAMUser",
+    "source_ip": "185.220.101.44",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "activity_name": "ConsoleLogin",
+    "additional_event_data": {
+      "MFAUsed": "No",
+      "MobileVersion": "No"
+    }
+  },
+  "trigger": {
+    "query": "SELECT * FROM \"cloudtrail\" WHERE object_type = 'signin.amazonaws.com' AND activity_name = 'ConsoleLogin'",
+    "source": "cloudtrail",
+    "lookback_seconds": 20,
+    "iteration": 1
+  }
+}

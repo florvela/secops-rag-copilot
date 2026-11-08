@@ -35,6 +35,10 @@ class InjectionGuard(BaseModel):
     max_tokens_segment: int
 
 
+class Orchestration(BaseModel):
+    max_iterations: int
+
+
 class Eval(BaseModel):
     ks: list[int]
 
@@ -46,6 +50,7 @@ class PipelineConfig(BaseModel):
     retrieval: Retrieval
     evidence: Evidence
     injection_guard: InjectionGuard
+    orchestration: Orchestration
     eval: Eval
 
 

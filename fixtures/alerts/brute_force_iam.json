@@ -1,0 +1,23 @@
+{
+  "severity": "HIGH",
+  "description": "Detects many failed console sign-ins against a single identity followed by a success.",
+  "resolution": "Block the source IP, revoke sessions, reset the password and enable MFA. Apply an account lockout policy.",
+  "mitre_techniques": ["T1110.001"],
+  "matched_event": {
+    "actor_user_name": "svc.deploy",
+    "actor_user_type": "IAMUser",
+    "source_ip": "171.25.193.78",
+    "user_agent": "python-requests/2.31.0",
+    "activity_name": "ConsoleLogin",
+    "additional_event_data": {
+      "failed_attempts": 214,
+      "result": "Success"
+    }
+  },
+  "trigger": {
+    "query": "SELECT * FROM \"cloudtrail\" WHERE activity_name = 'ConsoleLogin' AND error_code = 'Failed authentication'",
+    "source": "cloudtrail",
+    "lookback_seconds": 720,
+    "iteration": 1
+  }
+}

@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Proyecto secops-rag-copilot ---
+logs/
+.models/
+corpus/*.pdf
+notas/

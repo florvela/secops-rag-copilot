@@ -1,35 +1,16 @@
 ---
-documento: MITRE ATT&CK — Valid Accounts: Cloud Accounts
-version: ATT&CK v15
+documento: MITRE ATT&CK — Cloud Accounts
+version: ATT&CK v20.1
 fuente: mitre
 tecnicas: T1078.004
 ---
 
-# T1078.004 Valid Accounts: Cloud Accounts
+# T1078.004 Cloud Accounts
 
-Adversaries may obtain and abuse credentials of a cloud account as a means of gaining
-initial access, persistence, privilege escalation, or defense evasion. Cloud accounts
-are those created and configured by an organization for use by users, remote support,
-services, or for administration of resources within a cloud service provider or SaaS
-application. In some cases, cloud accounts may be federated with traditional identity
-management systems.
+Valid accounts in cloud environments may allow adversaries to perform actions to achieve Initial Access, Persistence, Privilege Escalation, or Defense Evasion. Cloud accounts are those created and configured by an organization for use by users, remote support, services, or for administration of resources within a cloud service provider or SaaS application. Cloud Accounts can exist solely in the cloud; alternatively, they may be hybrid-joined between on-premises systems and the cloud through syncing or federation with other identity sources such as Windows Active Directory.
 
-Compromised cloud accounts are frequently used to access services through the management
-console or programmatic interfaces. A successful console sign-in that does not use
-multi-factor authentication (MFA) is a common signal worth investigating, because MFA
-materially reduces the value of a stolen password.
+Service or user accounts may be targeted by adversaries through [Brute Force](https://attack.mitre.org/techniques/T1110), [Phishing](https://attack.mitre.org/techniques/T1566), or various other means to gain access to the environment. Federated or synced accounts may be a pathway for the adversary to affect both on-premises systems and cloud environments - for example, by leveraging shared credentials to log onto [Remote Services](https://attack.mitre.org/techniques/T1021). High privileged cloud accounts, whether federated, synced, or cloud-only, may also allow pivoting to on-premises environments by leveraging SaaS-based [Software Deployment Tools](https://attack.mitre.org/techniques/T1072) to run commands on hybrid-joined devices.
 
-## Detection
+An adversary may create long lasting [Additional Cloud Credentials](https://attack.mitre.org/techniques/T1098/001) on a compromised cloud account to maintain persistence in the environment. Such credentials may also be used to bypass security controls such as multi-factor authentication. 
 
-Monitor for unusual sign-in activity: logins from new source IP addresses, unfamiliar
-user agents, impossible travel, or authentications that bypass MFA. In AWS, CloudTrail
-`ConsoleLogin` events expose whether MFA was used through the `additional_event_data`
-field (`MFAUsed`). Correlate the actor, the source IP and the time against the user's
-baseline. A single successful console sign-in with `MFAUsed = No` on a human identity is
-suspicious, especially for privileged roles.
-
-## Mitigation
-
-Enforce MFA for all human identities. Restrict the use of long-lived credentials and
-prefer short-lived, role-based access. Apply conditional access policies that deny sign-ins
-from untrusted networks and require re-authentication for sensitive actions.
+Cloud accounts may also be able to assume [Temporary Elevated Cloud Access](https://attack.mitre.org/techniques/T1548/005) or other privileges through various means within the environment. Misconfigurations in role assignments or role assumption policies may allow an adversary to use these mechanisms to leverage permissions outside the intended scope of the account. Such over privileged accounts may be used to harvest sensitive data from online storage accounts and databases through [Cloud API](https://attack.mitre.org/techniques/T1059/009) or other methods. For example, in Azure environments, adversaries may target Azure Managed Identities, which allow associated Azure resources to request access tokens. By compromising a resource with an attached Managed Identity, such as an Azure VM, adversaries may be able to [Steal Application Access Token](https://attack.mitre.org/techniques/T1528)s to move laterally across the cloud environment.

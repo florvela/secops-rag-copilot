@@ -1,1 +1,54 @@
 # secops-rag-copilot
+
+A multi-agent security-alert investigation copilot with hybrid RAG over a security
+knowledge corpus (MITRE ATT&CK prose, playbooks, runbooks, historical incidents).
+
+Given a **structured alert** (simulated SIEM JSON: severity, description, resolution,
+MITRE technique, matched event and the triggering query), the system builds retrieval
+queries from the alert fields, retrieves grounded evidence via hybrid RAG
+(BM25 + embeddings + RRF + cross-encoder re-ranking), and returns an investigation
+report with citations. It runs fully locally.
+
+## Requirements
+
+- Python 3.13 (pinned in `.python-version`)
+- [Ollama](https://ollama.com) for the local LLM agents (only needed from Phase 4 on)
+
+## Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+The embedding and cross-encoder models are downloaded from Hugging Face on first run
+and cached locally. After that, the pipeline runs offline.
+
+## Configuration
+
+Runtime settings live in `config/config.json` (chunking, models, retrieval depth,
+thresholds). Secrets and environment-specific values live in `.env` (never hardcoded).
+
+## Project layout
+
+```
+src/
+  api/          FastAPI endpoint
+  ingest/       document parsing + chunking
+  retrieval/    BM25, embeddings, RRF fusion, re-ranking, metadata filtering
+  agents/       planner, investigator, judge + orchestration
+  guardrails/   input validation, injection screening, grounding
+  security/     audit log (JSONL)
+  eval/         metrics + golden set
+config/         config.json
+corpus/         knowledge documents (MITRE, playbooks, runbooks)
+fixtures/       simulated input alerts (JSON)
+tests/          tests for the critical modules
+docs/           deliverables (report, diagrams)
+```
+
+## License
+
+Academic project — PLN III, MIA.

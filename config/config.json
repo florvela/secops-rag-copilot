@@ -1,0 +1,28 @@
+{
+  "chunking": {
+    "max_tokens": 200,
+    "overlap": 60
+  },
+  "embedding": {
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "reranker": {
+    "model_name": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  },
+  "retrieval": {
+    "top_retrieve": 30,
+    "top_final": 5,
+    "rrf_k": 60,
+    "per_doc_cap": 2
+  },
+  "evidence": {
+    "min_rerank_score": 0.0
+  },
+  "injection_guard": {
+    "threshold": 0.5,
+    "max_tokens_segment": 512
+  },
+  "eval": {
+    "ks": [5, 10]
+  }
+}

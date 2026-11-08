@@ -49,6 +49,11 @@ tests/          tests for the critical modules
 docs/           deliverables (report, diagrams)
 ```
 
+## Testing
+
+See [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) for how to run the unit tests, the retrieval and
+injection evaluations, the CLI and the API locally.
+
 ## License
 
 Academic project — PLN III, MIA.

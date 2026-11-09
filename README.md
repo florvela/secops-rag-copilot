@@ -16,11 +16,22 @@ report with citations. It runs fully locally.
 
 ## Setup
 
+Quick path (creates the venv, installs deps, prepares `.env` and downloads the real
+MITRE ATT&CK data):
+
+```bash
+./setup.sh
+source .venv/bin/activate
+```
+
+Or do it manually:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+python scripts/fetch_mitre.py
 ```
 
 The embedding and cross-encoder models are downloaded from Hugging Face on first run

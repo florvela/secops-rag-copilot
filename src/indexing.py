@@ -18,14 +18,16 @@ class RagStore:
     dense: DenseIndex
 
 
-def build_store(settings: Settings, corpus_dir: str = "corpus") -> RagStore:
+def build_store(
+    settings: Settings, corpus_dir: str = "corpus", cache_dir: str | None = ".cache"
+) -> RagStore:
     cfg = settings.pipeline
     sections = parse_corpus(corpus_dir)
     chunks = chunk_sections(sections, cfg.chunking.max_tokens, cfg.chunking.overlap)
     return RagStore(
         chunks={c.id: c for c in chunks},
         bm25=BM25Index(chunks),
-        dense=DenseIndex(chunks, cfg.embedding.model_name),
+        dense=DenseIndex(chunks, cfg.embedding.model_name, cache_dir=cache_dir),
     )
 
 

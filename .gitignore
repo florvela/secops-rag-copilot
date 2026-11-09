@@ -223,4 +223,5 @@ __marimo__/
 logs/
 .models/
 corpus/*.pdf
+corpus/mitre/
 notas/

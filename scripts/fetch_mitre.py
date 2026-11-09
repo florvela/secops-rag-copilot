@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import urllib.request
@@ -10,13 +11,7 @@ ATTACK_URL = (
     "master/enterprise-attack/enterprise-attack.json"
 )
 CACHE = Path(".cache/enterprise-attack.json")
-
-# MITRE technique id -> corpus filename stem (kept stable so goldens still match).
-WANTED = {
-    "T1078.004": "mitre_T1078_004_cloud_accounts",
-    "T1110.001": "mitre_T1110_001_password_guessing",
-    "T1098": "mitre_T1098_account_manipulation",
-}
+OUT_DIR = Path("corpus/mitre")
 
 _CITATION = re.compile(r"\(Citation:.*?\)")
 
@@ -50,15 +45,14 @@ def _collection_version(bundle: dict) -> str:
     return ""
 
 
-def _write_doc(path: Path, obj: dict, version: str) -> None:
+def _doc_markdown(obj: dict, version: str) -> str:
     technique = _attack_id(obj)
     name = obj["name"]
     body = f"{_clean(obj.get('description', ''))}\n"
     detection = _clean(obj.get("x_mitre_detection", ""))
     if detection:
         body += f"\n## Detection\n\n{detection}\n"
-
-    path.write_text(
+    return (
         "---\n"
         f"documento: MITRE ATT&CK — {name}\n"
         f"version: ATT&CK v{version}\n"
@@ -66,32 +60,39 @@ def _write_doc(path: Path, obj: dict, version: str) -> None:
         f"tecnicas: {technique}\n"
         "---\n\n"
         f"# {technique} {name}\n\n"
-        f"{body}",
-        encoding="utf-8",
+        f"{body}"
     )
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Download MITRE ATT&CK techniques into the corpus.")
+    parser.add_argument("--out-dir", default=str(OUT_DIR))
+    parser.add_argument("--limit", type=int, default=0, help="only the first N (for quick tests)")
+    args = parser.parse_args()
+
     bundle = _download()
     version = _collection_version(bundle)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    index: dict[str, dict] = {}
+    techniques = []
     for obj in bundle["objects"]:
         if obj.get("type") != "attack-pattern":
             continue
         if obj.get("revoked") or obj.get("x_mitre_deprecated"):
             continue
-        technique = _attack_id(obj)
-        if technique:
-            index[technique] = obj
+        if _attack_id(obj):
+            techniques.append(obj)
 
-    for technique, stem in WANTED.items():
-        obj = index.get(technique)
-        if obj is None:
-            print(f"WARNING: {technique} not found in the bundle")
-            continue
-        _write_doc(Path("corpus") / f"{stem}.md", obj, version)
-        print(f"wrote corpus/{stem}.md  <-  {technique} {obj['name']}")
+    techniques.sort(key=lambda o: _attack_id(o))
+    if args.limit:
+        techniques = techniques[: args.limit]
+
+    for obj in techniques:
+        technique = _attack_id(obj)
+        (out_dir / f"{technique}.md").write_text(_doc_markdown(obj, version), encoding="utf-8")
+
+    print(f"wrote {len(techniques)} MITRE technique files to {out_dir}/ (ATT&CK v{version})")
 
 
 if __name__ == "__main__":

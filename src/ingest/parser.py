@@ -75,6 +75,6 @@ def parse_document(path: Path) -> list[Section]:
 def parse_corpus(corpus_dir: str | Path) -> list[Section]:
     corpus_path = Path(corpus_dir)
     sections: list[Section] = []
-    for path in sorted(corpus_path.glob("*.md")):
+    for path in sorted(corpus_path.rglob("*.md")):
         sections.extend(parse_document(path))
     return sections

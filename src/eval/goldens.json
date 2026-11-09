@@ -3,7 +3,7 @@
     "query": "successful console sign-in without MFA",
     "tecnicas": ["T1078.004"],
     "relevant_docs": [
-      "mitre_T1078_004_cloud_accounts",
+      "T1078.004",
       "playbook_unauthorized_console_signin",
       "incident_2025_03_mfa_bypass"
     ]
@@ -27,7 +27,7 @@
     "query": "many failed logins followed by a success brute force password guessing",
     "tecnicas": ["T1110.001"],
     "relevant_docs": [
-      "mitre_T1110_001_password_guessing",
+      "T1110.001",
       "playbook_brute_force_response",
       "incident_2024_11_brute_force_iam"
     ]
@@ -36,7 +36,7 @@
     "query": "attacker added a new access key to an identity for persistence",
     "tecnicas": ["T1098"],
     "relevant_docs": [
-      "mitre_T1098_account_manipulation",
+      "T1098",
       "runbook_rotate_credentials"
     ]
   },
@@ -44,7 +44,7 @@
     "query": "detect cloud account abuse valid accounts T1078.004",
     "tecnicas": ["T1078.004"],
     "relevant_docs": [
-      "mitre_T1078_004_cloud_accounts"
+      "T1078.004"
     ]
   }
 ]

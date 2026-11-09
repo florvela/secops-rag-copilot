@@ -42,6 +42,18 @@ and cached locally. After that, the pipeline runs offline.
 Runtime settings live in `config/config.json` (chunking, models, retrieval depth,
 thresholds). Secrets and environment-specific values live in `.env` (never hardcoded).
 
+### LLM backend
+
+The agents talk to the LLM through a small `LLMClient` interface with two interchangeable
+backends, selected by `LLM_BACKEND` in `.env`:
+
+- `native` (default) — talks to Ollama directly over HTTP. No extra dependencies.
+- `langchain` — uses LangChain (`ChatOllama`). Install `requirements-langchain.txt` first.
+  Through LangChain the chat model can be swapped for other providers (OpenAI, Anthropic,
+  Bedrock) by adding the matching package and key.
+
+The rest of the system (agents, guardrails, API) is unchanged by the choice.
+
 ## Project layout
 
 ```

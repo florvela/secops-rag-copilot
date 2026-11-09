@@ -1,0 +1,8 @@
+# Optional: enables the LangChain LLM backend (set LLM_BACKEND=langchain in .env).
+# The base project does not need these; it runs on the native Ollama backend.
+langchain-core>=0.3,<0.4
+langchain-ollama>=0.2,<0.4
+
+# To use other providers through LangChain, add the matching package and its key, e.g.:
+# langchain-openai      # OPENAI_API_KEY
+# langchain-anthropic   # ANTHROPIC_API_KEY

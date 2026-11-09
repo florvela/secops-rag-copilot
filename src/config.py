@@ -55,6 +55,7 @@ class PipelineConfig(BaseModel):
 
 
 class LLMSettings(BaseModel):
+    backend: str
     provider: str
     base_url: str
     model: str
@@ -81,6 +82,7 @@ def get_settings() -> Settings:
         config_path=config_path,
         log_dir=Path(os.getenv("LOG_DIR", "logs")),
         llm=LLMSettings(
+            backend=os.getenv("LLM_BACKEND", "native"),
             provider=os.getenv("LLM_PROVIDER", "ollama"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             model=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),

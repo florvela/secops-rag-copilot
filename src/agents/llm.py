@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Protocol, runtime_checkable
 
 
 class LLMUnavailable(RuntimeError):
     pass
+
+
+@runtime_checkable
+class LLMClient(Protocol):
+    def generate(self, prompt: str, system: str | None = None, temperature: float = 0.2) -> str: ...
+
+    def generate_json(self, prompt: str, system: str | None = None): ...
 
 
 def _extract_json(raw: str):
@@ -47,3 +55,12 @@ class LocalLLM:
 
     def generate_json(self, prompt: str, system: str | None = None):
         return _extract_json(self.generate(prompt, system=system))
+
+
+def build_llm(settings) -> LLMClient:
+    backend = settings.llm.backend.lower()
+    if backend == "langchain":
+        from src.agents.llm_langchain import LangChainLLM
+
+        return LangChainLLM(settings.llm.base_url, settings.llm.model)
+    return LocalLLM(settings.llm.base_url, settings.llm.model)

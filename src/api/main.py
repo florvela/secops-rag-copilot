@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import ValidationError
 
-from src.agents.llm import LocalLLM
+from src.agents.llm import build_llm
 from src.agents.orchestrator import investigate_alert
 from src.config import get_settings
 from src.guardrails.injection_guard import InjectionGuard
@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     _state["settings"] = settings
     _state["store"] = build_store(settings)
     _state["reranker"] = build_reranker(settings)
-    _state["llm"] = LocalLLM(settings.llm.base_url, settings.llm.model)
+    _state["llm"] = build_llm(settings)
     _state["guard"] = InjectionGuard(threshold=settings.pipeline.injection_guard.threshold)
     _state["audit"] = AuditLog(settings.log_dir)
     yield

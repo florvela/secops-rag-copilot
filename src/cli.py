@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from src.agents.llm import LocalLLM
+from src.agents.llm import build_llm
 from src.agents.orchestrator import investigate_alert
 from src.config import get_settings
 from src.guardrails.injection_guard import InjectionGuard
@@ -23,7 +23,7 @@ def main() -> None:
 
     store = build_store(settings)
     reranker = build_reranker(settings)
-    llm = LocalLLM(settings.llm.base_url, settings.llm.model)
+    llm = build_llm(settings)
     guard = InjectionGuard(threshold=settings.pipeline.injection_guard.threshold)
     audit = AuditLog(settings.log_dir)
 

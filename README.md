@@ -16,14 +16,16 @@ report with citations. It runs fully locally.
 
 ## Setup
 
-Quick path (creates the venv, installs deps, prepares `.env` and downloads the real
-MITRE ATT&CK data):
+Quick path (creates the venv, installs **both** LLM backends, prepares `.env` and
+downloads the real MITRE ATT&CK data):
 
 ```bash
-./setup.sh                # native backend only (default)
-./setup.sh --langchain    # also install the optional LangChain backend
+./setup.sh
 source .venv/bin/activate
 ```
+
+After setup you can run with either backend by setting `LLM_BACKEND` in `.env`
+(`native` by default, or `langchain`) — nothing else to install.
 
 Or do it manually:
 
@@ -31,6 +33,7 @@ Or do it manually:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-langchain.txt   # optional LangChain backend
 cp .env.example .env
 python scripts/fetch_mitre.py
 ```
@@ -49,9 +52,9 @@ The agents talk to the LLM through a small `LLMClient` interface with two interc
 backends, selected by `LLM_BACKEND` in `.env`:
 
 - `native` (default) — talks to Ollama directly over HTTP. No extra dependencies.
-- `langchain` — uses LangChain (`ChatOllama`). Install it with `./setup.sh --langchain`
-  (or `pip install -r requirements-langchain.txt`). Through LangChain the chat model can be
-  swapped for other providers (OpenAI, Anthropic, Bedrock) by adding the matching package and key.
+- `langchain` — uses LangChain (`ChatOllama`). Installed by `setup.sh`, so just set
+  `LLM_BACKEND=langchain`. Through LangChain the chat model can be swapped for other
+  providers (OpenAI, Anthropic, Bedrock) by adding the matching package and key.
 
 The rest of the system (agents, guardrails, API) is unchanged by the choice.
 

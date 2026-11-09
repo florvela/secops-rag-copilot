@@ -5,16 +5,6 @@
 
 set -euo pipefail
 
-# --- 0. Parse flags ---------------------------------------------------------
-# Pass --langchain to also install the optional LangChain backend.
-INSTALL_LANGCHAIN=0
-for arg in "$@"; do
-  case "$arg" in
-    --langchain) INSTALL_LANGCHAIN=1 ;;
-    *) echo "Unknown option: $arg" >&2; exit 1 ;;
-  esac
-done
-
 # --- 1. Pick a Python 3.13 interpreter --------------------------------------
 # torch / sentence-transformers do not ship wheels for Python 3.14 yet, so the
 # project is pinned to 3.13 (see .python-version).
@@ -38,13 +28,9 @@ fi
 echo "Installing dependencies ..."
 ./.venv/bin/python -m pip install --quiet --upgrade pip
 ./.venv/bin/python -m pip install -r requirements.txt
-
-# Optional LangChain backend (only with --langchain). The default backend is
-# native (Ollama) and needs none of this.
-if [ "$INSTALL_LANGCHAIN" -eq 1 ]; then
-  echo "Installing optional LangChain backend ..."
-  ./.venv/bin/python -m pip install -r requirements-langchain.txt
-fi
+# Also install the LangChain backend so both run modes are ready after setup.
+# The default backend stays native (Ollama); switch with LLM_BACKEND in .env.
+./.venv/bin/python -m pip install -r requirements-langchain.txt
 
 # --- 4. Prepare the local .env (only if missing) ----------------------------
 # .env is gitignored; it holds paths and the local LLM (Ollama) settings.

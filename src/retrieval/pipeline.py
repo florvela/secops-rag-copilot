@@ -14,18 +14,14 @@ class ScoredChunk:
     score: float
 
 
-def retrieve(
+def _fused_candidates(
     store,
-    reranker,
     query: str,
     cfg: PipelineConfig,
-    tecnicas: list[str] | None = None,
-    fuentes: list[str] | None = None,
-    top_final: int | None = None,
-) -> list[ScoredChunk]:
+    tecnicas: list[str] | None,
+    fuentes: list[str] | None,
+) -> list[Chunk]:
     r = cfg.retrieval
-    limit = top_final if top_final is not None else r.top_final
-
     bm25_hits = store.bm25.search(query, r.top_retrieve)
     dense_hits = store.dense.search(query, r.top_retrieve)
 
@@ -40,6 +36,36 @@ def retrieve(
     fused = reciprocal_rank_fusion(
         [filtered_ids(bm25_hits), filtered_ids(dense_hits)], r.rrf_k
     )
-    candidates = [store.chunks[i] for i, _ in fused if i in store.chunks]
-    ranked = reranker.rerank(query, candidates, limit, r.per_doc_cap)
+    return [store.chunks[i] for i, _ in fused if i in store.chunks]
+
+
+def retrieve(
+    store,
+    reranker,
+    query: str,
+    cfg: PipelineConfig,
+    tecnicas: list[str] | None = None,
+    fuentes: list[str] | None = None,
+    top_final: int | None = None,
+) -> list[ScoredChunk]:
+    limit = top_final if top_final is not None else cfg.retrieval.top_final
+    candidates = _fused_candidates(store, query, cfg, tecnicas, fuentes)
+    ranked = reranker.rerank(query, candidates, limit, cfg.retrieval.per_doc_cap)
     return [ScoredChunk(chunk=chunk, score=score) for chunk, score in ranked]
+
+
+def retrieve_stages(
+    store,
+    reranker,
+    query: str,
+    cfg: PipelineConfig,
+    tecnicas: list[str] | None = None,
+    fuentes: list[str] | None = None,
+    top_final: int | None = None,
+) -> tuple[list[Chunk], list[ScoredChunk]]:
+    """Return the fused candidates (pre re-ranking) and the reranked result (post)."""
+    limit = top_final if top_final is not None else cfg.retrieval.top_final
+    candidates = _fused_candidates(store, query, cfg, tecnicas, fuentes)
+    ranked = reranker.rerank(query, candidates, limit, cfg.retrieval.per_doc_cap)
+    post = [ScoredChunk(chunk=chunk, score=score) for chunk, score in ranked]
+    return candidates, post

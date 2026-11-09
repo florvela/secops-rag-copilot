@@ -20,7 +20,8 @@ Quick path (creates the venv, installs deps, prepares `.env` and downloads the r
 MITRE ATT&CK data):
 
 ```bash
-./setup.sh
+./setup.sh                # native backend only (default)
+./setup.sh --langchain    # also install the optional LangChain backend
 source .venv/bin/activate
 ```
 
@@ -48,9 +49,9 @@ The agents talk to the LLM through a small `LLMClient` interface with two interc
 backends, selected by `LLM_BACKEND` in `.env`:
 
 - `native` (default) — talks to Ollama directly over HTTP. No extra dependencies.
-- `langchain` — uses LangChain (`ChatOllama`). Install `requirements-langchain.txt` first.
-  Through LangChain the chat model can be swapped for other providers (OpenAI, Anthropic,
-  Bedrock) by adding the matching package and key.
+- `langchain` — uses LangChain (`ChatOllama`). Install it with `./setup.sh --langchain`
+  (or `pip install -r requirements-langchain.txt`). Through LangChain the chat model can be
+  swapped for other providers (OpenAI, Anthropic, Bedrock) by adding the matching package and key.
 
 The rest of the system (agents, guardrails, API) is unchanged by the choice.
 

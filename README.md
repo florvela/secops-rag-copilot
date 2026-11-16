@@ -12,7 +12,9 @@ report with citations. It runs fully locally.
 ## Requirements
 
 - Python 3.13 (pinned in `.python-version`)
-- [Ollama](https://ollama.com) for the local LLM agents (only needed from Phase 4 on)
+- [Ollama](https://ollama.com) for the local LLM agents — **required** to run the agents
+  (CLI/API). If the `native` backend is unreachable the system automatically falls back to the
+  `langchain` backend, and aborts with an error only if neither is available.
 
 ## Setup
 
@@ -69,12 +71,28 @@ src/
   guardrails/   input validation, injection screening, grounding
   security/     audit log (JSONL)
   eval/         metrics + golden set
-config/         config.json
+config/         config.json, activity_mitre_map.json
 corpus/         knowledge documents (MITRE, playbooks, runbooks)
+  playbooks/    response playbooks converted from AiSOC
 fixtures/       simulated input alerts (JSON)
+scripts/        data builders (fetch MITRE, build MITRE map, convert playbooks)
 tests/          tests for the critical modules
 docs/           deliverables (report, diagrams)
 ```
+
+## Data builders
+
+Two scripts derive data from the [AiSOC](https://github.com) detection/playbook repo
+(MIT License). Their outputs are committed, so the runtime does not depend on that repo;
+re-run them only to refresh from an updated checkout (adjust the source path constant at the
+top of each script):
+
+- `python scripts/build_mitre_map.py` → `config/activity_mitre_map.json`. Maps AWS
+  `activity_name` (e.g. `DeleteTrail`) to MITRE techniques. Alerts that arrive without a
+  technique are enriched from this map during input validation, so retrieval has an anchor.
+- `python scripts/convert_playbooks.py` → `corpus/playbooks/*.md`. Converts the AiSOC
+  response playbooks (YAML) into corpus markdown (`fuente: playbook`); the remediation
+  retrieval pass routes to these.
 
 ## Testing
 

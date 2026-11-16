@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "rule_type": "Behavioral",
+    "date_modified": "2026-04-30T13:13:00.336901Z",
+    "rule_name": "test-rule-leo",
+    "date_created": "2026-04-30T11:50:44.868723Z",
+    "custom": true,
+    "last_modified_by": "user2@clienteabc.example.com",
+    "created_by": "user2@clienteabc.example.com",
+    "enabled": true
+  },
+  "event": {
+    "iteration": "1",
+    "source": "",
+    "time": "20",
+    "query": "SELECT \"time\", \"activity_name\", \"src_endpoint_ip\" FROM \"cloudtrail\" where \"activity_name\" = 'AssumeRole'"
+  },
+  "timestamp": "2026-04-30T13:40:29Z",
+  "alert_management": {
+    "owner": "",
+    "analyst_assigned": "",
+    "status": "to_do",
+    "timestamp": ""
+  },
+  "security_detection": {
+    "severity": "medium",
+    "description": "TEST DESC",
+    "resolution": "TEST RES"
+  },
+  "alert_status": "processing_events_chunks",
+  "rule_id": "e0e508ff0a95be8ba054193202322ef9dbe7e8c2d4bd4462063baa066d97580d",
+  "rule_management": {
+    "aggregation_events": "1",
+    "notification_channel": "",
+    "aggregation_time": "10"
+  },
+  "events": {
+    "records": [
+      {
+        "activity_name": "AssumeRole",
+        "time": "2026-04-30T13:00:41Z",
+        "time_arg": "2026-04-30 10:00:41",
+        "src_endpoint_ip": "192.0.2.10"
+      }
+    ],
+    "total": "1"
+  },
+  "execution_id": "975451ea-d894-48fd-ac40-b40d1d57796e",
+  "client": "clienteabc",
+  "mitre_techniques": {},
+  "alert_id": "20260430134029-db71f887c68edda029e9358faa6959287e79cba78fbe22fe540d5567e404af48-86"
+}

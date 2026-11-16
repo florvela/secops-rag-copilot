@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "rule_type": "guardduty",
+    "rule_name": "Amazon S3 Block Public Access was disabled for the S3 bucket snet-clientexyz-app-qa-v5.",
+    "enabled": true,
+    "custom": false
+  },
+  "event": {
+    "iteration": "1",
+    "source": "Guardduty",
+    "time": "900",
+    "query": "ALERT FROM GUARDDUTY"
+  },
+  "events": [],
+  "client": "clientexyz",
+  "timestamp": "2026-06-09T17:40:30Z",
+  "alert_management": {
+    "is_false_positive": false,
+    "owner": "",
+    "resolved_by": "",
+    "status": "to_do",
+    "timestamp": ""
+  },
+  "security_detection": {
+    "severity": "Medium",
+    "description": "Alert from Guardduty",
+    "important_data": {
+      "IpAddressV4": "192.0.2.19",
+      "action_type": "AWS_API_CALL",
+      "CountryName": "United States",
+      "Org": "Amazon.com",
+      "Isp": "Amazon.com",
+      "Lon": "-77.4903",
+      "CallerType": "Remote IP",
+      "CityName": "Ashburn",
+      "ServiceName": "s3.amazonaws.com",
+      "AWS::S3::Bucket": "snet-clientexyz-app-qa-v5",
+      "AsnOrg": "Amazon.com, Inc.",
+      "Api": "DeleteBucketPublicAccessBlock",
+      "Asn": "14618",
+      "Lat": "39.0469"
+    },
+    "resource": {
+      "resource_type": "",
+      "ResourceType": "AccessKey"
+    },
+    "resolution": "https://us-east-1.console.aws.amazon.com/guardduty/home?region=us-east-1#/findings?macros=current&fId=4ccf56b83bf0286e06bec00dcd111114"
+  },
+  "alert_id": "185be39c9484f568841a534de3762cbbb61ca6b87e03ad4bbbe1d2a57c342671"
+}

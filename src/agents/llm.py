@@ -57,10 +57,41 @@ class LocalLLM:
         return _extract_json(self.generate(prompt, system=system))
 
 
-def build_llm(settings) -> LLMClient:
-    backend = settings.llm.backend.lower()
+def _make_client(backend: str, settings) -> LLMClient:
     if backend == "langchain":
         from src.agents.llm_langchain import LangChainLLM
 
         return LangChainLLM(settings.llm.base_url, settings.llm.model)
     return LocalLLM(settings.llm.base_url, settings.llm.model)
+
+
+def _probe(client: LLMClient) -> None:
+    """Confirm the backend answers, so an unreachable model is caught at startup."""
+    client.generate("ping", temperature=0.0)
+
+
+def build_llm(settings) -> LLMClient:
+    """Return a working LLM client.
+
+    The backend selected in ``.env`` (``native`` by default) is tried first; if it
+    cannot be reached, the other backend is tried automatically. If neither answers,
+    ``LLMUnavailable`` is raised.
+    """
+    preferred = settings.llm.backend.lower()
+    order = ["langchain", "native"] if preferred == "langchain" else ["native", "langchain"]
+
+    errors: list[str] = []
+    for backend in order:
+        try:
+            client = _make_client(backend, settings)
+            _probe(client)
+            return client
+        except LLMUnavailable as exc:
+            errors.append(f"{backend}: {exc}")
+
+    raise LLMUnavailable(
+        "No LLM backend is reachable. "
+        f"Start Ollama (`ollama serve` and `ollama pull {settings.llm.model}`) "
+        "or install the LangChain backend (requirements-langchain.txt). "
+        "Tried -> " + " | ".join(errors)
+    )

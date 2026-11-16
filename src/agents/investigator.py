@@ -34,8 +34,15 @@ class Investigator:
         self._cfg = cfg
         self._guard = guard
 
-    def investigate(self, query: str, tecnicas: list[str] | None = None) -> Evidence:
-        results = retrieve(self._store, self._reranker, query, self._cfg, tecnicas=tecnicas)
+    def investigate(
+        self,
+        query: str,
+        tecnicas: list[str] | None = None,
+        fuentes: list[str] | None = None,
+    ) -> Evidence:
+        results = retrieve(
+            self._store, self._reranker, query, self._cfg, tecnicas=tecnicas, fuentes=fuentes
+        )
 
         clean: list[ScoredChunk] = []
         flagged: list[tuple[Chunk, float]] = []

@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "rule_type": "Behavioral",
+    "date_modified": "2026-02-23T18:56:25.091010Z",
+    "rule_name": "AWS WAF - Allowed request to unauthorized API",
+    "date_created": "2026-02-23T18:56:17.689932Z",
+    "custom": true,
+    "last_modified_by": "analyst1@soc.example.com",
+    "created_by": null,
+    "enabled": true
+  },
+  "event": {
+    "iteration": "1",
+    "source": "None",
+    "time": "10",
+    "query": "SELECT\n  url_path,\n  outcome,\n  waf_web_acl_id\nFROM waf\nWHERE outcome <> 'blocked'\n  AND waf_web_acl_id != 'arn:aws:wafv2:us-east-1:111111111111:regional/webacl/ClienteXYZProdWAF/6b09c5a1-02f1-4fcf-b01c-70bf1eed8ab7'\n  AND NOT regexp_like(\n    url_path,\n      '^/((api|admin)/)?(enrollment-autenticacion-screen|dual-onboarding|demo-screen)(/.*|$)'\n   || '|^/((api|admin)/)?(dashboard|blacklist|config|error|validation-in-progress|invalid-session)(/.*|$)'\n   || '|^/((api|admin)/)?(users?|profile-photos|perfil|reports|selfie-auth)(/.*|$)'\n   || '|^/((api|admin)/)?(funnel-end(-auth)?|entra-id)(/.*|$)'\n   || '|^/((api|admin)/)?(sdk|sanctum|service|liveness|audit)(/.*|$)'\n   || '|^/((api|admin)/)?((a|e)/[^/]+|[^/]+/(auth|webhook)|$)'\n   || '|^/((api|admin)/)?(authenti(fi)?cations?|enrollment|self-enrollment)(/.*|$)'\n   || '|^/((api|admin)/)?(leads?|bureaus-[^/]+|[^/]+-section)(/.*|$)'\n   || '|^/((api|admin)/)?(livewire|vapor(-ui)?|flux|build|assets|\\\\.well-known|[^/]+\\\\.(ico|txt|png|xml|json|webmanifest))(/.*|$)'\n   || '|^/((api|admin)/)?(admin|api|login|logout|refresh|two-factor-challenge|test)(/.*|$)'\n  )\n  AND url_path NOT IN (\n    '/robots.txt',\n    '/favicon.ico'\n  );"
+  },
+  "timestamp": "2026-02-23T19:04:03Z",
+  "alert_management": {
+    "is_false_positive": false,
+    "owner": "",
+    "resolved_by": "",
+    "timestamp": "",
+    "status": "to_do"
+  },
+  "security_detection": {
+    "severity": "medium",
+    "description": "alertará cuando el WAF permita una request a un path que se encuentre por fuera del listado de paths permitidos para acceso desde internet",
+    "resolution": "De momento: Informar para tratamiento con ClienteXYZ"
+  },
+  "alert_status": "processing_events_chunks",
+  "rule_id": "ed01b5752a548d09b3f868a8cd65b37d4d93dd0652ef25b4a20ef1679735c02d",
+  "rule_management": {
+    "aggregation_events": "1",
+    "notification_channel": "jira-clientexyz-default",
+    "aggregation_time": "10"
+  },
+  "events": {
+    "records": [
+      {
+        "waf_web_acl_id": "arn:aws:wafv2:us-east-1:111111111111:regional/webacl/clientexyz_allow_only_api_access_prod/5f5da7ec-5b57-4bee-8282-9193d1d0d527",
+        "outcome": "allowed",
+        "url_path": "/bna-production/api/enrollment/status/27335650641-ldr-bd725c3d0"
+      }
+    ],
+    "total": "1"
+  },
+  "execution_id": "cf2a3275-7340-43d7-8e19-b24b4e3edea4",
+  "client": "clientexyz",
+  "mitre_techniques": {},
+  "alert_id": "20260223190403-896abb4b671bad2558648d76e970cce2ea3c2f394254f16f0eeb197581b8fb67-49"
+}

@@ -18,16 +18,19 @@ cp .env.example .env
 The embedding and cross-encoder models download from Hugging Face on first use and are cached
 locally; afterwards retrieval runs offline.
 
-### Optional: local LLM (Ollama)
+### Required: local LLM (Ollama)
 
-The agents (planner, judge, report writer) use a local LLM through Ollama. Without it the system
-still runs, falling back to deterministic planning, a heuristic grounding check and an extractive
-report. To enable the full LLM path:
+The agents (planner, judge, report writer) use a local LLM, so a reachable backend is required for
+the CLI and API (steps 5–6):
 
 ```bash
 # install Ollama from https://ollama.com, then:
 ollama pull llama3.1:8b
 ```
+
+`build_llm` tries the backend selected by `LLM_BACKEND` (`native` by default) and automatically
+falls back to the other backend (`langchain`) if the first is unreachable. If neither answers, the
+run aborts with an error pointing to this setup.
 
 Values are read from `.env` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`).
 
@@ -107,7 +110,7 @@ A malformed alert (missing field, oversized text) returns HTTP 422 with the vali
 | Unit tests | no | no |
 | Injection eval (step 4) | no | no |
 | Retrieval eval (step 3) | yes (model download) | no |
-| CLI / API (steps 5–6) | yes (model download) | optional (fallbacks otherwise) |
+| CLI / API (steps 5–6) | yes (model download) | required |
 
 ## Where things are written
 

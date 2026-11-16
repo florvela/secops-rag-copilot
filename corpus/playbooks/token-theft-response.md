@@ -1,55 +1,24 @@
 ---
 documento: Playbook — Authentication Token Theft Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # Authentication Token Theft Response
-Responds to stolen authentication token usage including JWT hijacking, session cookie theft, and bearer token replay attacks. Revokes tokens, forces re-authentication, and checks for downstream unauthorized access.
+Respond to stolen authentication token usage: JWT hijacking, session-cookie theft, or bearer-token replay. Revoke the tokens, force re-authentication, and check for downstream access.
 
-Applies to high, critical severity alerts. Tags: token-theft, identity, jwt, session-hijacking, authentication.
+# Triage
+- Enrich the token-usage event: user, token type, source, and the actions taken with it.
+- Investigate replay activity and whether the token was used from more than one location.
 
-# Step 1 — Enrich Token Usage Event (Enrich context)
-- source: identity_provider
-- fields: username, email, token_type, token_id, original_ip, replay_ip, user_agent, endpoints_accessed, data_accessed
+# Containment
+- Immediately revoke the stolen token and revoke all of the user's active sessions.
+- Block the source IP replaying the token.
 
-# Step 2 — Investigate Token Replay Activity (Investigate)
-- query: token_usage token_id={{ alert.token_id }} anomalous=true
-- context fields: alert.token_id, alert.replay_ip, alert.endpoints_accessed
+# Eradication and recovery
+- Force re-authentication and rotate the signing keys or secrets if the token mechanism itself was exposed.
+- Check downstream systems the token could reach for unauthorized access.
 
-# Step 3 — Immediately Revoke Stolen Token (Call external action)
-- method: POST
-- url: {{ env.IDP_API_URL }}/tokens/{{ alert.token_id }}/revoke
-- body: reason=Token theft detected — replay from different IP
-
-# Step 4 — Revoke All User Sessions (Call external action)
-- method: POST
-- url: {{ env.IDP_API_URL }}/users/{{ alert.username }}/revoke-sessions
-- body: reason=Token theft — full session revocation
-
-# Step 5 — Block Token Replay Source IP (Containment — block source IP)
-- ip field: alert.replay_ip
-- direction: inbound
-- duration hours: 48
-- comment: Token theft replay IP — playbook {{ id }}
-
-# Step 6 — Notify Affected User (Notify)
-- channel: email
-- to: {{ alert.email }}
-- subject: Security Alert: Your authentication token was used from an unexpected location
-- message: A stolen authentication token was detected being used from {{ alert.replay_ip }}.
-
-Your {{ alert.token_type }} token has been revoked and all sessions terminated.
-Please sign in again and contact security if you did not authorize this access.
-
-Security contact: security@company.com
-
-
-# Step 7 — Create Token Theft Ticket (Create ticket)
-- title: TOKEN-THEFT: {{ alert.username }} — {{ alert.token_type }} replayed from {{ alert.replay_ip }}
-- severity: P1
-- assignee group: ir-team
-
-# Step 8 — Close Token Theft Case (Close case)
-- status: contained
-- resolution: Token revoked; all sessions terminated; replay IP blocked; user notified.
+# Notification and closure
+- Notify the affected user and open a ticket.
+- Close the case once tokens are revoked and no further misuse is seen.

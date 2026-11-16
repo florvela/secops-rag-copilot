@@ -3,15 +3,18 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.agents.investigator import Investigator, build_context, format_citation
 from src.agents.judge import Judge
 from src.agents.llm import LLMUnavailable, LocalLLM
 from src.agents.planner import Planner
+from src.agents.remediator import Remediator
 from src.config import PipelineConfig
 from src.guardrails.grounding import enforce_grounding
+from src.guardrails.human_approval import ActionOutcome, Approver, run_with_approval
 from src.guardrails.injection_guard import InjectionGuard
+from src.mcp_tools.registry import ToolRegistry
 from src.retrieval.pipeline import ScoredChunk
 from src.security.audit import AuditLog
 
@@ -38,6 +41,7 @@ class InvestigationResult:
     used_retrieval: bool
     flagged_chunks: int
     execution_id: str
+    actions: list[ActionOutcome] = field(default_factory=list)
 
 
 def _dedup_top(scored: list[ScoredChunk], n: int) -> list[ScoredChunk]:
@@ -93,6 +97,8 @@ def investigate_alert(
     cfg: PipelineConfig,
     guard: InjectionGuard,
     audit: AuditLog,
+    tools: ToolRegistry | None = None,
+    approver: Approver | None = None,
 ) -> InvestigationResult:
     execution_id = uuid.uuid4().hex[:12]
     logger.info(
@@ -257,6 +263,8 @@ def investigate_alert(
     if not verdict.grounded:
         logger.warning("[%s] grounding check failed: %s", execution_id, verdict.reason)
         audit.log(execution_id, "grounding_failed", reason=verdict.reason)
+    actions = _remediate(alert, report, llm, tools, approver, audit, execution_id)
+
     logger.info("[%s] done: grounded=%s, %d citations", execution_id, verdict.grounded, len(citations))
     audit.log(
         execution_id,
@@ -265,6 +273,7 @@ def investigate_alert(
         grounded=verdict.grounded,
         flagged=flagged_total,
         citations=len(citations),
+        actions=len(actions),
     )
 
     return InvestigationResult(
@@ -276,4 +285,30 @@ def investigate_alert(
         used_retrieval=True,
         flagged_chunks=flagged_total,
         execution_id=execution_id,
+        actions=actions,
     )
+
+
+def _remediate(
+    alert: dict,
+    report: str,
+    llm: LocalLLM,
+    tools: ToolRegistry | None,
+    approver: Approver | None,
+    audit: AuditLog,
+    execution_id: str,
+) -> list[ActionOutcome]:
+    """Propose a response plan (Remediator) and run it through the approval guardrail."""
+    if tools is None:
+        return []
+    logger.info("[%s] proposing response actions (Remediator, LLM)...", execution_id)
+    proposed = Remediator(llm, tools).propose(alert, report)
+    for action in proposed:
+        logger.info(
+            "[%s]   proposed: %s %s (destructive=%s)",
+            execution_id,
+            action.tool,
+            action.args,
+            action.destructive,
+        )
+    return run_with_approval(proposed, tools, audit, execution_id, approve=approver)

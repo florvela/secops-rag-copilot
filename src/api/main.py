@@ -11,6 +11,7 @@ from src.config import get_settings
 from src.guardrails.injection_guard import InjectionGuard
 from src.guardrails.input_validation import validate_alert
 from src.indexing import build_reranker, build_store
+from src.mcp_tools import build_default_registry
 from src.security.audit import AuditLog
 
 _state: dict = {}
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
     _state["llm"] = build_llm(settings)
     _state["guard"] = InjectionGuard(threshold=settings.pipeline.injection_guard.threshold)
     _state["audit"] = AuditLog(settings.log_dir)
+    _state["tools"] = build_default_registry()
     yield
     _state.clear()
 
@@ -48,6 +50,8 @@ def investigate(payload: dict) -> dict:
             detail=[{"loc": e["loc"], "msg": e["msg"]} for e in exc.errors()],
         )
 
+    # No approver over HTTP: destructive actions come back as pending_approval
+    # instead of being executed autonomously.
     result = investigate_alert(
         alert,
         _state["store"],
@@ -56,6 +60,7 @@ def investigate(payload: dict) -> dict:
         _state["settings"].pipeline,
         _state["guard"],
         _state["audit"],
+        tools=_state["tools"],
     )
     return {
         "report": result.report,
@@ -66,4 +71,15 @@ def investigate(payload: dict) -> dict:
         "used_retrieval": result.used_retrieval,
         "flagged_chunks": result.flagged_chunks,
         "execution_id": result.execution_id,
+        "actions": [
+            {
+                "tool": a.tool,
+                "args": a.args,
+                "destructive": a.destructive,
+                "status": a.status,
+                "reason": a.reason,
+                "result": a.result,
+            }
+            for a in result.actions
+        ],
     }

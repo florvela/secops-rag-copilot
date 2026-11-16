@@ -6,7 +6,8 @@ The system is designed to spend compute only where it adds value.
 
 - **Deterministic, no tokens:** parsing, chunking, BM25, RRF fusion and metadata filtering cost no
   model calls. The cross-encoder re-ranker runs on CPU.
-- **Small LLM:** planner and judge run on a small local model (via Ollama). They produce short JSON.
+- **Small LLM:** planner, judge and remediator run on a small local model (via Ollama). They produce
+  short JSON.
 - **Larger generation only at the end:** only the final report benefits from a more capable model;
   everything upstream stays cheap.
 
@@ -25,7 +26,16 @@ Measure with the CLI (step 5 of the local testing guide) or the API. The dominan
 
 1. One-time model load at startup (embeddings + cross-encoder), amortised across requests.
 2. Embedding + re-ranking per query (CPU-bound, sub-second for this corpus).
-3. LLM calls (planner, report, judge) — the largest variable cost; scales with the local model size.
+3. LLM calls (planner, report, judge, remediator) — the largest variable cost; scales with the
+   local model size.
+
+## Remediation / MCP layer
+
+The Remediator adds one more LLM call, and the tool layer adds a hop per action. As noted in class,
+MCP is "a layer on top of layers" — each adds latency — so in production the tool calls would run
+asynchronously and slow tools would be batched or backgrounded. Here the tools are mocked and return
+immediately, so the only added cost is the single Remediator LLM call. Destructive actions are gated
+by human approval, so they do not run autonomously.
 
 ## RAG vs. fine-tuning
 

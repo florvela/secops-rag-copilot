@@ -1,57 +1,24 @@
 ---
 documento: Playbook — Account Takeover Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # Account Takeover Response
-Responds to suspected account takeover (ATO) events. Forces session termination, resets credentials, enables MFA enforcement, and notifies the user and security team.
+Respond to a suspected account takeover: confirm the compromise, lock the attacker out, restore the account to a trusted state, and inform the right people.
 
-Applies to medium, high, critical severity alerts. Tags: account-takeover, identity, iam, credential-compromise.
+# Triage
+- Gather context on the affected identity: recent sign-ins, source IPs and geolocations, device, and whether MFA was used.
+- Review the login history for impossible travel, unfamiliar locations, or a burst of failures followed by a success.
 
-# Step 1 — Enrich Compromised User Account (Enrich context)
-- source: identity_provider
-- fields: username, email, department, manager, last_login_ip, mfa_enabled, active_sessions
+# Containment
+- Revoke all active sessions for the identity to invalidate any stolen tokens.
+- Force a credential (password) reset and block the attacker's source IP if one stands out.
 
-# Step 2 — Investigate Login History (Investigate)
-- query: logins user={{ alert.username }} last_days=7
-- context fields: alert.username, alert.last_login_ip
+# Eradication and recovery
+- Enforce MFA, or require MFA re-enrollment, before the account is used again.
+- Review anything the attacker may have changed (keys, mail forwarding rules, grants) and revert it.
 
-# Step 3 — Check MFA Status (Decision)
-- condition: field=alert.mfa_enabled; operator=eq; value=False
-
-# Step 4 — Enforce MFA on Account (Call external action)
-- method: POST
-- url: {{ env.IDP_API_URL }}/users/{{ alert.username }}/enforce-mfa
-- body: enforce=True; reason=ATO response — playbook {{ id }}
-
-# Step 5 — Revoke All Active Sessions (Call external action)
-- method: POST
-- url: {{ env.IDP_API_URL }}/users/{{ alert.username }}/revoke-sessions
-- body: reason=Suspected account takeover
-
-# Step 6 — Notify Affected User (Notify)
-- channel: email
-- to: {{ alert.email }}
-- subject: Security Alert: Unusual activity detected on your account
-- message: We detected unusual login activity on your account.
-Your sessions have been terminated as a precaution.
-Please contact IT security immediately: security@company.com
-
-
-# Step 7 — Notify User's Manager (Notify)
-- channel: email
-- to: {{ alert.manager_email }}
-- subject: Security Alert: {{ alert.username }} account may be compromised
-- message: The account {{ alert.username }} has been flagged for suspected compromise.
-Sessions terminated. IR team has been notified.
-
-
-# Step 8 — Create ATO Incident Ticket (Create ticket)
-- title: ATO: {{ alert.username }} — suspicious login from {{ alert.last_login_ip }}
-- severity: P1
-- assignee group: ir-team
-
-# Step 9 — Close ATO Case (Close case)
-- status: contained
-- resolution: Sessions revoked; MFA enforced; user and manager notified; IR ticket created.
+# Notification and closure
+- Notify the affected user and their manager, and open an incident ticket.
+- Close the case once the account is verified clean and secured.

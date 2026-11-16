@@ -1,56 +1,24 @@
 ---
 documento: Playbook — IAM Key Compromise Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # IAM Key Compromise Response
-Responds to compromised IAM access keys including keys exposed in public repositories, leaked in logs, or used from unexpected geolocations. Immediately disables the key, audits recent API usage, and rotates credentials.
+Respond to a compromised or leaked cloud access key: a key exposed in a public repo, leaked in logs, or used from an unexpected location. Disable it, audit its use, and rotate.
 
-Applies to high, critical severity alerts. Tags: iam, aws, cloud, key-compromise, credential-leak.
+# Triage
+- Enrich the key event: owner, account, creation and last-used time, last-used region and service, and how it was exposed.
+- Investigate the key's recent API usage for unauthorized or high-impact calls.
 
-# Step 1 — Enrich IAM Key Event (Enrich context)
-- source: cloud_iam
-- fields: access_key_id, account_id, username, key_created_at, last_used_at, last_used_region, last_used_service, exposure_source, api_calls_24h
+# Containment
+- Immediately disable the compromised access key.
+- If the key was used from an unexpected source, revoke the related sessions.
 
-# Step 2 — Immediately Disable Compromised Key (Call external action)
-- method: PUT
-- url: {{ env.AWS_IAM_API_URL }}/users/{{ alert.username }}/keys/{{ alert.access_key_id }}
-- body: Status=Inactive; reason=Key compromise detected — playbook {{ id }}
+# Eradication and recovery
+- Rotate the credential and issue a replacement; update any systems that used the old key.
+- If exposed in a repository, have the owning team purge it from the history, not just the latest commit.
 
-# Step 3 — Investigate Recent API Usage (Investigate)
-- query: cloudtrail key={{ alert.access_key_id }} last_hours=48 service=all
-
-- context fields: alert.access_key_id, alert.api_calls_24h
-
-# Step 4 — Check Exposure Source Type (Decision)
-- condition: field=alert.exposure_source; operator=eq; value=public_repo
-
-# Step 5 — Notify VCS Team to Remove Key from Repo (Notify)
-- channel: #devsecops-alerts
-- message: 🔑 *IAM Key Exposed in Public Repository*
-Key: `{{ alert.access_key_id }}`
-Account: `{{ alert.account_id }}`
-IAM User: `{{ alert.username }}`
-Key has been disabled. Remove from VCS immediately and rotate.
-
-
-# Step 6 — Notify Cloud Security Team (Notify)
-- channel: #cloud-security
-- message: 🔑 *IAM Key Compromise Detected*
-Key: `{{ alert.access_key_id }}`
-Account: `{{ alert.account_id }}`
-IAM User: `{{ alert.username }}`
-Exposure: `{{ alert.exposure_source }}`
-API calls (24h): {{ alert.api_calls_24h }}
-Key disabled: {{ steps.disable-key.status }}
-
-
-# Step 7 — Create IAM Key Compromise Ticket (Create ticket)
-- title: IAM-KEY: {{ alert.access_key_id }} compromised via {{ alert.exposure_source }}
-- severity: P1
-- assignee group: cloud-security
-
-# Step 8 — Close IAM Key Compromise Case (Close case)
-- status: contained
-- resolution: Key disabled; API usage audited; VCS/cloud security notified; rotation in progress.
+# Notification and closure
+- Notify the cloud security team (and the VCS team if leaked in code), and open a ticket.
+- Close the case once the key is rotated and no unauthorized use remains.

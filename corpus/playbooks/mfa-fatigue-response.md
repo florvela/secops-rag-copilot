@@ -1,56 +1,24 @@
 ---
 documento: Playbook — MFA Fatigue Attack Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # MFA Fatigue Attack Response
-Responds to MFA push fatigue attacks where attackers spam authentication requests hoping the user accidentally approves. Detects rapid successive MFA prompts, temporarily blocks push notifications, and forces re-enrollment.
+Respond to an MFA push-fatigue (push-bombing) attack, where an attacker spams approval prompts hoping the user accidentally accepts. Cut the prompts, block the source, and reset the second factor.
 
-Applies to high, critical severity alerts. Tags: mfa-fatigue, identity, authentication, push-bombing, account-takeover.
+# Triage
+- Enrich the event with the targeted user and the source IPs driving the prompts.
+- Investigate the push frequency and whether any prompt was approved.
 
-# Step 1 — Enrich MFA Fatigue Event (Enrich context)
-- source: identity_provider
-- fields: username, email, phone_number, push_count, push_window_minutes, source_ips, device_enrolled, last_successful_mfa
+# Containment
+- Temporarily disable push-based MFA for the user and switch to a phishing-resistant factor.
+- Block the attacking IPs at the perimeter.
 
-# Step 2 — Investigate Attack Source IPs (Investigate)
-- query: mfa_attempts user={{ alert.username }} last_hours=1
-- context fields: alert.username, alert.push_count, alert.source_ips
+# Eradication and recovery
+- Force MFA re-enrollment and reset the user's credentials if a prompt was approved.
+- Confirm no session was established from the attacker.
 
-# Step 3 — Check Push Frequency (Decision)
-- condition: field=alert.push_count; operator=gt; value=10
-
-# Step 4 — Temporarily Disable Push MFA (Call external action)
-- method: POST
-- url: {{ env.IDP_API_URL }}/users/{{ alert.username }}/mfa/push/disable
-- body: reason=MFA fatigue attack — push bombing detected; duration_hours=24
-
-# Step 5 — Block Attacking IPs at Perimeter (Containment — block source IP)
-- ip field: alert.source_ips
-- direction: inbound
-- duration hours: 48
-- comment: MFA fatigue attack IPs — playbook {{ id }}
-
-# Step 6 — Notify User of MFA Fatigue Attack (Notify)
-- channel: email
-- to: {{ alert.email }}
-- subject: SECURITY ALERT: Do not approve unexpected MFA requests
-- message: IMPORTANT: Someone is attempting to access your account.
-
-We have detected {{ alert.push_count }} MFA push requests in the last
-{{ alert.push_window_minutes }} minutes directed at your account.
-
-DO NOT approve any MFA requests you did not initiate.
-
-Push MFA has been temporarily disabled as a precaution.
-Contact security immediately: security@company.com
-
-
-# Step 7 — Create MFA Fatigue Ticket (Create ticket)
-- title: MFA-FATIGUE: {{ alert.username }} — {{ alert.push_count }} pushes in {{ alert.push_window_minutes }}min
-- severity: P1
-- assignee group: ir-team
-
-# Step 8 — Close MFA Fatigue Case (Close case)
-- status: contained
-- resolution: Push MFA disabled; attacker IPs blocked; user notified; IR investigating.
+# Notification and closure
+- Notify the user about the attack and how to recognize it, and open a ticket.
+- Close the case once the second factor is reset and prompts have stopped.

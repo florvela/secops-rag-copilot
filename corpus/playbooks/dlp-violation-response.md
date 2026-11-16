@@ -1,60 +1,20 @@
 ---
 documento: Playbook — DLP Policy Violation Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # DLP Policy Violation Response
-Responds to data loss prevention (DLP) policy violations including unauthorized data transfers, sensitive document uploads to personal storage, or PII/PHI exfiltration attempts. Blocks the transfer, notifies compliance, and preserves audit evidence.
+Respond to a data loss prevention violation: unauthorized data transfer, sensitive uploads to personal storage, or PII/PHI exfiltration. Stop the transfer, preserve evidence, and involve compliance.
 
-Applies to medium, high, critical severity alerts. Tags: dlp, data-loss-prevention, compliance, pii, phi, exfiltration.
+# Triage
+- Enrich the event with the user, destination, data classification, and volume moved.
+- Review the user's DLP history to tell a one-off mistake from a pattern.
 
-# Step 1 — Enrich DLP Violation Event (Enrich context)
-- source: dlp_engine
-- fields: username, email, department, manager, data_classification, file_name, destination, destination_type, bytes_transferred, policy_violated
+# Containment
+- Block the transfer and, for high-classification data, escalate immediately.
+- Revoke the sharing link or access path used for the exfiltration.
 
-# Step 2 — Investigate User DLP History (Investigate)
-- query: dlp_events user={{ alert.username }} last_days=30
-- context fields: alert.username, alert.data_classification
-
-# Step 3 — Check Data Classification Level (Decision)
-- condition: field=alert.data_classification; operator=eq; value=restricted
-
-# Step 4 — Block Transfer and Escalate (Call external action)
-- method: POST
-- url: {{ env.DLP_API_URL }}/violations/{{ alert.id }}/block
-- body: action=block; reason=Restricted data DLP violation — playbook {{ id }}
-
-# Step 5 — Notify Compliance and Legal (Notify)
-- channel: email
-- to: {{ env.COMPLIANCE_EMAIL }}
-- subject: DLP Violation: Restricted Data Transfer — {{ alert.username }}
-- message: A DLP violation has been detected and blocked.
-
-User: {{ alert.username }} ({{ alert.email }})
-Department: {{ alert.department }}
-Data Classification: {{ alert.data_classification }}
-File: {{ alert.file_name }}
-Destination: {{ alert.destination }} ({{ alert.destination_type }})
-Bytes: {{ alert.bytes_transferred }}
-Policy: {{ alert.policy_violated }}
-
-Transfer has been blocked. IR is investigating.
-
-
-# Step 6 — Notify User's Manager (Notify)
-- channel: email
-- to: {{ alert.manager_email }}
-- subject: Security Alert: DLP Policy Violation by {{ alert.username }}
-- message: A DLP policy violation was detected on {{ alert.username }}'s account.
-Security team is reviewing. Please contact security for details.
-
-
-# Step 7 — Create DLP Violation Ticket (Create ticket)
-- title: DLP: {{ alert.data_classification }} data — {{ alert.username }} to {{ alert.destination_type }}
-- severity: P2
-- assignee group: security-compliance
-
-# Step 8 — Close DLP Case (Close case)
-- status: remediated
-- resolution: Transfer blocked; compliance notified; manager informed; audit evidence preserved.
+# Notification and closure
+- Notify compliance and legal, and the user's manager, preserving the audit trail.
+- Open a violation ticket and close once reviewed and remediated.

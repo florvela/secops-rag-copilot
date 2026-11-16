@@ -1,53 +1,24 @@
 ---
 documento: Playbook — Container Escape Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # Container Escape Response
-Responds to detected container escape attempts or privileged container misuse. Terminates the offending container, cordons the node, captures runtime forensics, and alerts the platform security team.
+Respond to a container escape attempt or privileged-container misuse. Stop the offending workload, protect the node, and preserve forensics.
 
-Applies to high, critical severity alerts. Tags: container, kubernetes, docker, escape, runtime-security.
+# Triage
+- Enrich the container context: image, privileges, mounts, and the node it runs on.
+- Investigate the suspicious process activity that triggered the alert and whether it reached the host.
 
-# Step 1 — Enrich Container Context (Enrich context)
-- source: container_runtime
-- fields: container_id, container_name, image, namespace, node_name, pod_name, privileged, capabilities, process_tree, syscalls
+# Containment
+- Terminate the offending container immediately.
+- Cordon the affected node so no new workloads schedule onto it while it is investigated.
 
-# Step 2 — Investigate Suspicious Process Activity (Investigate)
-- query: container_process container={{ alert.container_id }} anomalous=true last_minutes=30
+# Eradication and recovery
+- Capture runtime forensics before and after isolation.
+- Rebuild the node from a known-good image and remove the offending image or privileged settings.
 
-- context fields: alert.container_id, alert.process_tree
-
-# Step 3 — Check Privileged Container (Decision)
-- condition: field=alert.privileged; operator=eq; value=True
-
-# Step 4 — Terminate Offending Container Immediately (Call external action)
-- method: DELETE
-- url: {{ env.K8S_API_URL }}/namespaces/{{ alert.namespace }}/pods/{{ alert.pod_name }}
-- headers: Authorization=Bearer {{ env.K8S_TOKEN }}
-
-# Step 5 — Cordon Compromised Node (Call external action)
-- method: PATCH
-- url: {{ env.K8S_API_URL }}/nodes/{{ alert.node_name }}
-- body: spec={'unschedulable': True}
-
-# Step 6 — Notify Platform Security Team (Notify)
-- channel: #platform-security
-- message: 🐳 *Container Escape Detected*
-Container: `{{ alert.container_name }}`
-Image: `{{ alert.image }}`
-Node: `{{ alert.node_name }}`
-Namespace: `{{ alert.namespace }}`
-Privileged: {{ alert.privileged }}
-Container terminated: {{ steps.immediate-terminate.status }}
-Node cordoned: {{ steps.cordon-node.status }}
-
-
-# Step 7 — Create Container Escape Ticket (Create ticket)
-- title: CONTAINER-ESCAPE: {{ alert.container_name }} on {{ alert.node_name }}
-- severity: P1
-- assignee group: platform-security
-
-# Step 8 — Close Container Escape Case (Close case)
-- status: contained
-- resolution: Container terminated; node cordoned; forensics captured.
+# Notification and closure
+- Notify the platform security team and open an incident ticket.
+- Close the case once the node is remediated and the escape path is fixed.

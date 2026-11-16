@@ -1,51 +1,24 @@
 ---
-documento: Playbook — S3 Bucket Exposure Response
-version: 1.0.0
+documento: Playbook — Object Storage Bucket Exposure Response
+version: 1.0
 fuente: playbook
 ---
 
-# S3 Bucket Exposure Response
-Responds to S3 bucket misconfigurations including public access enablement, ACL changes granting anonymous access, and unexpected data exfiltration from buckets. Remediates public access, audits bucket policy, and notifies cloud security.
+# Object Storage Bucket Exposure Response
+Respond to an object-storage (e.g. S3) bucket misconfiguration: public access enabled, ACL changes granting anonymous access, or unexpected exfiltration. Remove public access and audit the policy.
 
-Applies to medium, high, critical severity alerts. Tags: s3, cloud, aws, misconfiguration, data-exposure.
+# Triage
+- Enrich the bucket configuration: ownership, policy, ACLs, and whether it holds sensitive data.
+- Investigate access logs for anonymous or unexpected reads, and when the exposure began.
 
-# Step 1 — Enrich S3 Bucket Configuration (Enrich context)
-- source: cloud_iam
-- fields: bucket_name, account_id, region, public_access_block, acl, bucket_policy, encryption_enabled, versioning_enabled, data_classification, estimated_size_gb
+# Containment
+- Enable the public-access block and remove any anonymous or overly broad grants.
+- If data was exfiltrated, preserve the access logs as evidence.
 
-# Step 2 — Investigate Bucket Access Logs (Investigate)
-- query: s3_access bucket={{ alert.bucket_name }} requester=anonymous last_hours=24
-- context fields: alert.bucket_name, alert.acl
+# Eradication and recovery
+- Audit and correct the bucket policy and ACLs, and review other buckets for the same misconfiguration.
+- Rotate anything sensitive that may have been exposed.
 
-# Step 3 — Check If Bucket Is Publicly Accessible (Decision)
-- condition: field=alert.public_access_block; operator=eq; value=False
-
-# Step 4 — Enable S3 Public Access Block (Call external action)
-- method: PUT
-- url: {{ env.AWS_S3_API_URL }}/{{ alert.bucket_name }}/public-access-block
-- body: BlockPublicAcls=True; IgnorePublicAcls=True; BlockPublicPolicy=True; RestrictPublicBuckets=True
-
-# Step 5 — Request Bucket Policy Audit (Call external action)
-- method: POST
-- url: {{ env.CLOUD_SECURITY_API_URL }}/audit/s3
-- body: bucket={{ alert.bucket_name }}; account={{ alert.account_id }}; check_types=['policy', 'acl', 'encryption', 'logging']
-
-# Step 6 — Notify Cloud Security Team (Notify)
-- channel: #cloud-security
-- message: 🪣 *S3 Bucket Exposure Detected*
-Bucket: `{{ alert.bucket_name }}`
-Account: `{{ alert.account_id }}`
-Region: `{{ alert.region }}`
-Classification: `{{ alert.data_classification }}`
-Size: {{ alert.estimated_size_gb }}GB
-Public access blocked: {{ steps.block-public-access.status }}
-
-
-# Step 7 — Create S3 Exposure Ticket (Create ticket)
-- title: S3-EXPOSURE: {{ alert.bucket_name }} in {{ alert.account_id }}
-- severity: P1
-- assignee group: cloud-security
-
-# Step 8 — Close S3 Exposure Case (Close case)
-- status: remediated
-- resolution: Public access blocked; bucket policy audited; cloud security notified.
+# Notification and closure
+- Notify the cloud security team and open a ticket.
+- Close the case once public access is removed and the policy is fixed.

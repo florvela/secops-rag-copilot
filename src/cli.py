@@ -9,9 +9,11 @@ from pathlib import Path
 from src.agents.llm import build_llm
 from src.agents.orchestrator import investigate_alert
 from src.config import get_settings
+from src.guardrails.human_approval import cli_approver
 from src.guardrails.injection_guard import InjectionGuard
 from src.guardrails.input_validation import validate_alert
 from src.indexing import build_reranker, build_store
+from src.mcp_tools import build_default_registry
 from src.security.audit import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -43,8 +45,19 @@ def main() -> None:
     llm = build_llm(settings)
     guard = InjectionGuard(threshold=settings.pipeline.injection_guard.threshold)
     audit = AuditLog(settings.log_dir)
+    tools = build_default_registry()
 
-    result = investigate_alert(alert, store, reranker, llm, settings.pipeline, guard, audit)
+    result = investigate_alert(
+        alert,
+        store,
+        reranker,
+        llm,
+        settings.pipeline,
+        guard,
+        audit,
+        tools=tools,
+        approver=cli_approver,
+    )
 
     print("=" * 60)
     print("REPORT\n")
@@ -52,6 +65,10 @@ def main() -> None:
     print("\nCitations:")
     for citation in result.citations:
         print(" -", citation)
+    if result.actions:
+        print("\nResponse actions:")
+        for action in result.actions:
+            print(f" - [{action.status}] {action.tool} {action.args}")
     print(
         f"\ngrounded={result.grounded} iterations={result.iterations} "
         f"flagged_chunks={result.flagged_chunks} execution_id={result.execution_id}"

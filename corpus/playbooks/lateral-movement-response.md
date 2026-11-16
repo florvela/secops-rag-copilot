@@ -1,51 +1,24 @@
 ---
 documento: Playbook — Lateral Movement Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # Lateral Movement Response
-Responds to detected lateral movement activity including pass-the-hash, pass-the-ticket, remote service abuse, and admin share enumeration. Isolates affected hosts, revokes lateral credentials, and maps the blast radius.
+Respond to lateral movement: pass-the-hash, pass-the-ticket, remote-service abuse, or admin-share enumeration. Isolate affected hosts, cut the credentials being reused, and map the blast radius.
 
-Applies to high, critical severity alerts. Tags: lateral-movement, endpoint, network, credential-abuse, active-directory.
+# Triage
+- Enrich the event with the source and destination hosts, the account used, and the technique observed.
+- Map the blast radius: which hosts and accounts the movement has touched.
 
-# Step 1 — Enrich Lateral Movement Event (Enrich context)
-- source: endpoint
-- fields: source_host, destination_host, technique, account_used, protocol, destination_port, network_path
+# Containment
+- Isolate the source host from the network.
+- If the destination is a sensitive system, isolate it too, and revoke the credentials being reused.
 
-# Step 2 — Map Lateral Movement Blast Radius (Investigate)
-- query: lateral_connections source={{ alert.source_host }} last_hours=6
+# Eradication and recovery
+- Reset the compromised credentials across every host where they were used.
+- Rebuild hosts that cannot be confirmed clean.
 
-- context fields: alert.source_host, alert.destination_host, alert.technique
-
-# Step 3 — Isolate Source Host (Containment — isolate host)
-- hostname: {{ alert.source_host }}
-- reason: Lateral movement detected — playbook {{ id }}
-- notify user: True
-
-# Step 4 — Check If Destination Is Sensitive (Decision)
-- condition: field=alert.destination_host; operator=contains; value=dc
-
-# Step 5 — Isolate Sensitive Destination Host (Containment — isolate host)
-- hostname: {{ alert.destination_host }}
-- reason: Lateral movement target — possible DC compromise — playbook {{ id }}
-
-# Step 6 — Notify Security Operations (Notify)
-- channel: #ir-critical
-- message: ↔️ *Lateral Movement Detected*
-Technique: `{{ alert.technique }}`
-Source: `{{ alert.source_host }}`
-Destination: `{{ alert.destination_host }}`
-Account: `{{ alert.account_used }}`
-Protocol: `{{ alert.protocol }}`
-Source isolated: {{ steps.isolate-source.status }}
-
-
-# Step 7 — Create Lateral Movement Ticket (Create ticket)
-- title: LATERAL: {{ alert.technique }} from {{ alert.source_host }} to {{ alert.destination_host }}
-- severity: P1
-- assignee group: ir-team
-
-# Step 8 — Close Lateral Movement Case (Close case)
-- status: contained
-- resolution: Source isolated; blast radius mapped; IR ticket created.
+# Notification and closure
+- Notify security operations and open an incident ticket.
+- Close the case once movement is stopped and credentials are rotated.

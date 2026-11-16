@@ -1,55 +1,20 @@
 ---
 documento: Playbook — Business Email Compromise (BEC) Response
-version: 1.0.0
+version: 1.0
 fuente: playbook
 ---
 
 # Business Email Compromise (BEC) Response
-Responds to Business Email Compromise alerts. Identifies spoofed or compromised executive accounts used to initiate fraudulent wire transfers or sensitive data requests. Blocks sender, alerts finance/legal, and coordinates with email gateway.
+Respond to business email compromise: a spoofed or compromised (often executive) account used to request fraudulent wire transfers or sensitive data. Stop the fraud, contain the sender, and coordinate with finance and legal.
 
-Applies to high, critical severity alerts. Tags: bec, email, fraud, executive, financial-fraud.
+# Triage
+- Enrich the email metadata and check sender authentication (SPF, DKIM, DMARC) for spoofing.
+- Investigate whether the internal account was actually compromised (unusual sign-ins, new rules) or only impersonated.
 
-# Step 1 — Enrich BEC Email Metadata (Enrich context)
-- source: email_gateway
-- fields: sender, reply_to, display_name, recipients, subject, body_snippet, spf_result, dkim_result, dmarc_result
+# Containment
+- Block the spoofed or malicious sender domain at the mail gateway.
+- If an internal account is compromised, revoke its sessions and reset credentials.
 
-# Step 2 — Check Email Authentication Failure (Decision)
-- condition: field=alert.dmarc_result; operator=eq; value=fail
-
-# Step 3 — Block Spoofed Sender Domain (Containment — block source IP)
-- ip field: alert.sender_domain
-- block type: domain
-- direction: inbound
-- duration hours: 720
-- comment: BEC spoofed sender — playbook {{ id }}
-
-# Step 4 — Investigate Potentially Compromised Account (Investigate)
-- query: logins user={{ alert.sender }} anomalous=true last_days=14
-
-# Step 5 — Alert Finance Team to Hold Wire Transfers (Notify)
-- channel: #finance-alerts
-- message: 🚨 *BEC Alert — HOLD ALL WIRE TRANSFERS*
-Suspected fraudulent email from: `{{ alert.sender }}`
-Display Name: `{{ alert.display_name }}`
-Subject: `{{ alert.subject }}`
-Recipients: {{ alert.recipients }}
-DMARC: {{ alert.dmarc_result }}
-Contact IR immediately: #ir-critical
-
-
-# Step 6 — Notify Security Team (Notify)
-- channel: #ir-critical
-- message: 🎯 *Business Email Compromise Detected*
-Sender: `{{ alert.sender }}`
-Reply-To: `{{ alert.reply_to }}`
-Finance team notified to hold transfers.
-
-
-# Step 7 — Create BEC Incident Ticket (Create ticket)
-- title: BEC: Fraudulent email from {{ alert.sender }} — {{ alert.subject }}
-- severity: P1
-- assignee group: ir-team
-
-# Step 8 — Close BEC Case (Close case)
-- status: contained
-- resolution: Sender blocked; finance alerted to hold transfers; IR investigating.
+# Notification and closure
+- Alert the finance team to hold any pending or requested wire transfers.
+- Notify the security team (and legal if funds moved), open an incident ticket, and close once resolved.

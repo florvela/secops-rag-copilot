@@ -7,7 +7,35 @@ Given a **structured alert** (simulated SIEM JSON: severity, description, resolu
 MITRE technique, matched event and the triggering query), the system builds retrieval
 queries from the alert fields, retrieves grounded evidence via hybrid RAG
 (BM25 + embeddings + RRF + cross-encoder re-ranking), and returns an investigation
-report with citations. It runs fully locally.
+report with citations. It then proposes a **response plan** and executes approved
+actions through a mock MCP tool layer. It runs fully locally.
+
+## Agents and flow
+
+```
+Alert → [MITRE enrichment] → Planner → Investigator (hybrid RAG) → Judge (grounding)
+                                                                      │ grounded report
+                                                                      ▼
+                                                         Remediator (3rd agent)
+                                                         proposes response actions
+                                                                      │
+                                                                      ▼
+                                                 Human-in-the-loop guardrail
+                                                 destructive action → approval
+                                                                      ▼
+                                                 MCP tools (mock): disable_credential,
+                                                 block_ip, revoke_sessions, isolate_host,
+                                                 create_ticket, notify
+```
+
+- **Planner / Investigator / Judge / Remediator** — four agents; the Remediator turns the
+  grounded report into a proposed response plan by selecting from the available tools.
+- **MCP tools** (`src/mcp_tools/`) — generic SOC response actions with a JSON schema and a
+  `destructive` flag. Implementations are **mocked** (simulated results, no real systems).
+  They can optionally be served over a real MCP transport (`src/mcp_tools/server.py`, FastMCP).
+- **Human-in-the-loop** (`src/guardrails/human_approval.py`) — destructive actions require
+  approval (interactive in the CLI; returned as `pending_approval` over the API), mitigating
+  excessive agency. Every proposal and decision is written to the audit log.
 
 ## Requirements
 
@@ -67,8 +95,9 @@ src/
   api/          FastAPI endpoint
   ingest/       document parsing + chunking
   retrieval/    BM25, embeddings, RRF fusion, re-ranking, metadata filtering
-  agents/       planner, investigator, judge + orchestration
-  guardrails/   input validation, injection screening, grounding
+  agents/       planner, investigator, judge, remediator + orchestration
+  guardrails/   input validation, injection screening, grounding, human approval
+  mcp_tools/    mock remediation tools (registry + optional FastMCP server)
   security/     audit log (JSONL)
   eval/         metrics + golden set
 config/         config.json, activity_mitre_map.json

@@ -1,50 +1,24 @@
 ---
-documento: Playbook — Ransomware Containment & Eradication
-version: 1.0.0
+documento: Playbook — Ransomware Containment and Eradication
+version: 1.0
 fuente: playbook
 ---
 
-# Ransomware Containment & Eradication
-Automated containment and eradication playbook for ransomware incidents. Isolates affected hosts, blocks C2 IPs, snapshots disk state for forensics, and notifies the security team with remediation steps.
+# Ransomware Containment and Eradication
+Contain and eradicate a ransomware incident. Isolate affected hosts fast, cut command-and-control, and preserve forensic state before recovery.
 
-Applies to high, critical severity alerts. Tags: ransomware, malware, containment, endpoint, high-severity.
+# Triage
+- Enrich the affected host and confirm the severity and scope (which hosts and shares are affected).
+- Identify the ransomware family and its command-and-control (C2) indicators.
 
-# Step 1 — Enrich Affected Host (Enrich context)
-- source: endpoint
-- fields: hostname, os, last_user, network_connections
+# Containment
+- Isolate affected hosts from the network immediately to stop encryption from spreading.
+- Block the C2 IPs and domains at the perimeter.
 
-# Step 2 — Check Alert Severity (Decision)
-- condition: field=alert.severity; operator=eq; value=critical
+# Eradication and recovery
+- Snapshot disk state for forensics before wiping.
+- Re-image affected hosts and restore data from known-good backups; rotate exposed credentials.
 
-# Step 3 — Isolate Host from Network (Containment — isolate host)
-- reason: Ransomware detected — automated isolation
-- notify user: True
-
-# Step 4 — Block C2 IPs at Perimeter (Containment — block source IP)
-- ip field: alert.external_ips
-- direction: both
-- duration hours: 72
-- comment: Ransomware C2 block — playbook {{ id }}
-
-# Step 5 — Create Incident Ticket (Create ticket)
-- title: RANSOMWARE: {{ alert.hostname }} — {{ alert.created_at }}
-- severity: P1
-- assignee group: ir-team
-- description: Ransomware alert triggered on {{ alert.hostname }}.
-Alert ID: {{ alert.id }}
-User: {{ alert.last_user }}
-Isolation status: {{ steps.isolate-immediately.status }}
-
-
-# Step 6 — Notify IR Team via Slack (Notify)
-- channel: #ir-critical
-- message: 🚨 *Ransomware Detected*
-Host: `{{ alert.hostname }}`
-Severity: `{{ alert.severity }}`
-Ticket: {{ steps.create-ticket.ticket_url }}
-Isolation: {{ steps.isolate-immediately.status }}
-
-
-# Step 7 — Mark Case Contained (Close case)
-- status: contained
-- resolution: Host isolated; C2 blocked; IR ticket created.
+# Notification and closure
+- Open an incident ticket and notify the incident response team.
+- Mark the case contained once spread is stopped, and track recovery to closure.

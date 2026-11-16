@@ -24,11 +24,12 @@ logger = logging.getLogger(__name__)
 _REPORT_SYSTEM = (
     "You are a SOC analyst. Write a concise investigation report using ONLY the provided "
     "evidence and the alert fields. Cite sources using their bracketed [ ... ] markers. "
-    "Do not assert facts that are not in the evidence or the alert. In particular, do not "
-    "claim an account is compromised, an IP is malicious or untrusted, or that an action was "
-    "performed by an attacker, unless the evidence states it. Describe such items as observed "
-    "fields to review, not as established facts. If the evidence is insufficient, state that "
-    "explicitly."
+    "State as established fact only what the evidence or the alert directly supports. When you "
+    "reason beyond that — likely intent, whether an account is compromised, whether an IP is "
+    "malicious — present it explicitly as a hypothesis or a lead to investigate using hedged "
+    "language ('this may indicate...', 'a possible interpretation is...', 'worth reviewing...'), "
+    "never as a confirmed fact. These hypotheses are useful: they tell the analyst what to check "
+    "next. If the evidence is insufficient, say so explicitly."
 )
 
 

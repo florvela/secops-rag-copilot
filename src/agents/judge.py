@@ -9,6 +9,28 @@ _SYSTEM = (
     "Output strict JSON only, no prose."
 )
 
+# Hedging markers: a claim carrying any of these is a hypothesis / lead, not a stated
+# fact, so it is acceptable in a triage report and must not count as unsupported.
+_HEDGE = (
+    "may ",
+    "might ",
+    "could ",
+    "possibly",
+    "possible",
+    "perhaps",
+    "consistent with",
+    "worth investigating",
+    "worth reviewing",
+    "appears to",
+    "suggests",
+    "potential",
+)
+
+
+def _is_hedged(claim: str) -> bool:
+    text = f" {claim.lower()} "
+    return any(marker in text for marker in _HEDGE)
+
 
 @dataclass
 class Verdict:
@@ -31,8 +53,14 @@ class Judge:
             except (LLMUnavailable, ValueError, KeyError, TypeError) as exc:
                 raise LLMUnavailable(f"judge: grounding check failed ({exc})") from exc
 
-        unsupported = [str(c).strip() for c in (data.get("unsupported") or []) if str(c).strip()]
-        grounded = bool(data.get("grounded", False)) and not unsupported
+        # Keep only unsupported FACTUAL claims; drop hedged hypotheses the model may have
+        # wrongly flagged (small models misapply the fact-vs-hypothesis rule).
+        unsupported = [
+            claim
+            for claim in (str(c).strip() for c in (data.get("unsupported") or []))
+            if claim and not _is_hedged(claim)
+        ]
+        grounded = not unsupported
         reason = str(data.get("reason", "")).strip()
         if unsupported:
             reason = (reason + " | unsupported: " + "; ".join(unsupported[:5])).strip(" |")
@@ -40,19 +68,24 @@ class Judge:
 
     def _prompt(self, report: str, context: str) -> str:
         return (
-            "Decide whether every factual claim in the REPORT is directly supported by the "
-            "EVIDENCE below.\n\n"
+            "Check whether the REPORT's statements of FACT are supported by the EVIDENCE below. "
+            "Distinguish facts from hypotheses.\n\n"
             "Rules:\n"
-            "- A claim is supported ONLY if the evidence states it. Ignore outside knowledge.\n"
-            "- Inferences or assumptions stated as fact count as UNSUPPORTED. In particular, "
-            "attributions such as calling an account 'compromised', an IP 'malicious/untrusted', "
-            "or an action 'performed by an attacker' are unsupported unless the evidence says so.\n"
-            "- Generic security guidance is fine when it comes from the cited evidence.\n\n"
+            "- A statement asserted as an established FACT must be supported by the evidence or "
+            "the alert; if it is not, list it in `unsupported`. Example of unsupported fact: "
+            "'the account is compromised' or 'the deletion was performed by an attacker' stated "
+            "plainly.\n"
+            "- A HEDGED hypothesis or lead to investigate is ACCEPTABLE and must NOT be listed as "
+            "unsupported, as long as the observation it builds on (a field or pattern) appears in "
+            "the evidence. Hedging looks like 'may indicate', 'could be', 'possibly', 'consistent "
+            "with', 'a possible interpretation', 'worth investigating'. These leads are expected "
+            "in a triage report.\n"
+            "- Generic security guidance drawn from cited evidence is fine.\n\n"
             "EVIDENCE:\n"
             f"{context}\n\n"
             "REPORT:\n"
             f"{report}\n\n"
             'Return JSON: {"grounded": true/false, "unsupported": ["claim", ...], "reason": "..."}\n'
-            "List every unsupported claim in `unsupported`; set `grounded` to false if that list "
-            "is non-empty."
+            "Put only unsupported FACTUAL claims (not hedged hypotheses) in `unsupported`; set "
+            "`grounded` to false only if that list is non-empty."
         )

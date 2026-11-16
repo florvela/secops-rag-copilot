@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 
 from src.agents.llm import LLMUnavailable, LocalLLM
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM = "You are a SOC triage planner. Output strict JSON only, no prose."
 
@@ -42,7 +45,9 @@ class Planner:
     def _generate_plan(self, alert: dict) -> dict:
         prompt = self._prompt(alert)
         try:
-            return self._llm.generate_json(prompt, system=_SYSTEM)
+            data = self._llm.generate_json(prompt, system=_SYSTEM)
+            logger.debug("thinking (plan): %s", json.dumps(data)[:1500])
+            return data
         except (ValueError, KeyError, TypeError):
             # Small local models occasionally emit malformed JSON; retry once.
             try:

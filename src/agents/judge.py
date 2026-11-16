@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 
 from src.agents.llm import LLMUnavailable, LocalLLM
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You are a strict grounding verifier for SOC investigation reports. "
@@ -52,6 +56,8 @@ class Judge:
                 data = self._llm.generate_json(prompt, system=_SYSTEM)
             except (LLMUnavailable, ValueError, KeyError, TypeError) as exc:
                 raise LLMUnavailable(f"judge: grounding check failed ({exc})") from exc
+
+        logger.debug("thinking (grounding): %s", json.dumps(data)[:1500])
 
         # Keep only unsupported FACTUAL claims; drop hedged hypotheses the model may have
         # wrongly flagged (small models misapply the fact-vs-hypothesis rule).

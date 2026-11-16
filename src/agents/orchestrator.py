@@ -100,6 +100,7 @@ def _write_report(llm: LocalLLM, alert: dict, context: str) -> str:
     report = llm.generate(_report_prompt(alert, context), system=_REPORT_SYSTEM)
     if not report:
         raise LLMUnavailable("report generation returned empty output")
+    logger.debug("thinking (report):\n%s", report)
     return report
 
 
@@ -115,7 +116,9 @@ def _write_closure(llm: LocalLLM, alert: dict, report: str, actions: list[Action
         "pending/declined), and the resulting status."
     )
     try:
-        return llm.generate(prompt, system=_CLOSURE_SYSTEM)
+        closure = llm.generate(prompt, system=_CLOSURE_SYSTEM)
+        logger.debug("thinking (closure):\n%s", closure)
+        return closure
     except LLMUnavailable:
         return ""
 

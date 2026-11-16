@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 
 from src.agents.llm import LLMUnavailable, LocalLLM
 from src.mcp_tools.registry import ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You are a SOC remediation planner. You choose response actions from the available "
@@ -33,6 +36,7 @@ class Remediator:
 
     def propose(self, alert: dict, report: str) -> list[ProposedAction]:
         data = self._generate(alert, report)
+        logger.debug("thinking (remediation): %s", json.dumps(data)[:1500])
         # The model may return {"actions": [...]} or a bare [...] list.
         if isinstance(data, dict):
             raw_actions = data.get("actions", [])

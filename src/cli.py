@@ -47,6 +47,18 @@ def main() -> None:
     audit = AuditLog(settings.log_dir)
     tools = build_default_registry()
 
+    def show_report(report: str, grounded: bool, reason: str) -> None:
+        # Printed before any approval prompt, so the analyst decides with the report in hand.
+        print("\n" + "=" * 60)
+        print("INVESTIGATION REPORT\n")
+        print(report)
+        status = "GROUNDED" if grounded else "NOT GROUNDED — review before approving actions"
+        print(f"\n[grounding: {status}]")
+        if not grounded and reason:
+            print(f"  reason: {reason}")
+        print("\n" + "-" * 60)
+        print("Proposed response actions (approve destructive ones below):")
+
     result = investigate_alert(
         alert,
         store,
@@ -57,18 +69,20 @@ def main() -> None:
         audit,
         tools=tools,
         approver=cli_approver,
+        on_report=show_report,
     )
 
-    print("=" * 60)
-    print("REPORT\n")
-    print(result.report)
     print("\nCitations:")
     for citation in result.citations:
         print(" -", citation)
     if result.actions:
-        print("\nResponse actions:")
+        print("\nResponse actions taken:")
         for action in result.actions:
             print(f" - [{action.status}] {action.tool} {action.args}")
+    if result.closure:
+        print("\n" + "=" * 60)
+        print("CLOSURE NOTE\n")
+        print(result.closure)
     print(
         f"\ngrounded={result.grounded} iterations={result.iterations} "
         f"flagged_chunks={result.flagged_chunks} execution_id={result.execution_id}"

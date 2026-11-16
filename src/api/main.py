@@ -71,6 +71,7 @@ def investigate(payload: dict) -> dict:
         "used_retrieval": result.used_retrieval,
         "flagged_chunks": result.flagged_chunks,
         "execution_id": result.execution_id,
+        "closure": result.closure,
         "actions": [
             {
                 "tool": a.tool,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from src.agents.investigator import Investigator, build_context, format_citation
@@ -42,6 +43,18 @@ class InvestigationResult:
     flagged_chunks: int
     execution_id: str
     actions: list[ActionOutcome] = field(default_factory=list)
+    closure: str = ""
+
+
+# Called with (report, grounded, grounded_reason) after the investigation report is ready
+# and before any response action runs, so a caller can show it to the analyst first.
+ReportCallback = Callable[[str, bool, str], None]
+
+_CLOSURE_SYSTEM = (
+    "You are a SOC analyst writing a brief incident closure note. Summarize what the alert "
+    "was, the key finding from the investigation, and the response actions taken. Use ONLY the "
+    "provided report and action list; do not invent actions or facts. Be concise."
+)
 
 
 def _dedup_top(scored: list[ScoredChunk], n: int) -> list[ScoredChunk]:
@@ -89,6 +102,23 @@ def _write_report(llm: LocalLLM, alert: dict, context: str) -> str:
     return report
 
 
+def _write_closure(llm: LocalLLM, alert: dict, report: str, actions: list[ActionOutcome]) -> str:
+    """Final closure note summarizing the incident and what was actually done."""
+    action_lines = "\n".join(f"- {a.status}: {a.tool} {a.args}" for a in actions) or "(no response actions)"
+    prompt = (
+        f"Alert severity: {alert.get('severity')}\n"
+        f"Description: {alert.get('description')}\n\n"
+        f"Investigation report:\n{report}\n\n"
+        f"Response actions (status: tool args):\n{action_lines}\n\n"
+        "Write a short closure note: incident summary, the response actions taken (or left "
+        "pending/declined), and the resulting status."
+    )
+    try:
+        return llm.generate(prompt, system=_CLOSURE_SYSTEM)
+    except LLMUnavailable:
+        return ""
+
+
 def investigate_alert(
     alert: dict,
     store,
@@ -99,6 +129,7 @@ def investigate_alert(
     audit: AuditLog,
     tools: ToolRegistry | None = None,
     approver: Approver | None = None,
+    on_report: ReportCallback | None = None,
 ) -> InvestigationResult:
     execution_id = uuid.uuid4().hex[:12]
     logger.info(
@@ -140,8 +171,12 @@ def investigate_alert(
     if not plan.needs_retrieval:
         logger.info("[%s] no retrieval needed; writing report (LLM)...", execution_id)
         report = _write_report(llm, alert, "")
+        if on_report is not None:
+            on_report(report, True, "no external knowledge required")
+        actions = _remediate(alert, report, llm, tools, approver, audit, execution_id)
+        closure = _write_closure(llm, alert, report, actions) if tools is not None else ""
         logger.info("[%s] done (no retrieval)", execution_id)
-        audit.log(execution_id, "completed", used_retrieval=False, grounded=True)
+        audit.log(execution_id, "completed", used_retrieval=False, grounded=True, actions=len(actions))
         return InvestigationResult(
             report=report,
             grounded=True,
@@ -151,6 +186,8 @@ def investigate_alert(
             used_retrieval=False,
             flagged_chunks=0,
             execution_id=execution_id,
+            actions=actions,
+            closure=closure,
         )
 
     # Event anchor (description + activity/object/source). Used from the start when the
@@ -263,7 +300,18 @@ def investigate_alert(
     if not verdict.grounded:
         logger.warning("[%s] grounding check failed: %s", execution_id, verdict.reason)
         audit.log(execution_id, "grounding_failed", reason=verdict.reason)
+
+    # Present the report to the analyst BEFORE proposing/approving any action, so the
+    # human decides with the report (and its grounding status) in hand.
+    if on_report is not None:
+        on_report(report, verdict.grounded, verdict.reason)
+
     actions = _remediate(alert, report, llm, tools, approver, audit, execution_id)
+
+    closure = ""
+    if tools is not None:
+        logger.info("[%s] writing closure note (LLM)...", execution_id)
+        closure = _write_closure(llm, alert, report, actions)
 
     logger.info("[%s] done: grounded=%s, %d citations", execution_id, verdict.grounded, len(citations))
     audit.log(
@@ -286,6 +334,7 @@ def investigate_alert(
         flagged_chunks=flagged_total,
         execution_id=execution_id,
         actions=actions,
+        closure=closure,
     )
 
 

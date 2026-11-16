@@ -16,6 +16,8 @@ actions through a mock MCP tool layer. It runs fully locally.
 Alert → [MITRE enrichment] → Planner → Investigator (hybrid RAG) → Judge (grounding)
                                                                       │ grounded report
                                                                       ▼
+                                                     report shown to the analyst first
+                                                                      ▼
                                                          Remediator (3rd agent)
                                                          proposes response actions
                                                                       │
@@ -26,7 +28,12 @@ Alert → [MITRE enrichment] → Planner → Investigator (hybrid RAG) → Judge
                                                  MCP tools (mock): disable_credential,
                                                  block_ip, revoke_sessions, isolate_host,
                                                  create_ticket, notify
+                                                                      ▼
+                                                        closure note (what was done)
 ```
+
+The report is presented before any action so the analyst approves with the finding (and its
+grounding status) in hand; a closure note at the end summarizes the actions actually taken.
 
 - **Planner / Investigator / Judge / Remediator** — four agents; the Remediator turns the
   grounded report into a proposed response plan by selecting from the available tools.

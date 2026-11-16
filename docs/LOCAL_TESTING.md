@@ -78,11 +78,13 @@ python -m src.cli fixtures/alerts/mfa_console_signin.json
 Validates the alert, runs the multi-agent investigation and prints the report, citations and run
 metadata (`grounded`, `iterations`, `flagged_chunks`, `execution_id`).
 
-The Remediator then proposes response actions. **Destructive** ones (block an IP, revoke sessions,
-disable a credential, isolate a host) prompt for approval in the terminal (`[y/N]`); non-destructive
-ones (create a ticket, notify) run directly. The tools are mocked — they log to `logs/security.jsonl`
-and return a simulated result, touching no real system. Over the API these actions come back with
-status `pending_approval` instead of prompting.
+The flow is ordered so the analyst decides with the report in hand: the **investigation report**
+(and its grounding status) is shown first, then the Remediator proposes response actions. **Destructive**
+ones (block an IP, revoke sessions, disable a credential, isolate a host) prompt for approval in the
+terminal (`[y/N]`); non-destructive ones (create a ticket, notify) run directly. Finally a **closure
+note** summarizes the incident and the actions actually taken. The tools are mocked — they log to
+`logs/security.jsonl` and return a simulated result, touching no real system. Over the API the actions
+come back with status `pending_approval` instead of prompting.
 
 To see the injection guard in action, use the adversarial fixture: the suspicious `matched_event`
 is logged as `injection_suspected` in `logs/security.jsonl`.

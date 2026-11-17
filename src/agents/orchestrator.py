@@ -20,6 +20,13 @@ from src.retrieval.pipeline import ScoredChunk
 from src.security.audit import AuditLog
 
 logger = logging.getLogger(__name__)
+# Log each milestone under the logger of the agent doing the work, so the trace reads
+# as the agents talking (and is colored per agent) even at INFO level.
+_planner_log = logging.getLogger("src.agents.planner")
+_investigator_log = logging.getLogger("src.agents.investigator")
+_judge_log = logging.getLogger("src.agents.judge")
+_remediator_log = logging.getLogger("src.agents.remediator")
+_guard_log = logging.getLogger("src.guardrails.injection_guard")
 
 _REPORT_SYSTEM = (
     "You are a SOC analyst. Write a concise investigation report using ONLY the provided "
@@ -146,24 +153,24 @@ def investigate_alert(
     investigator = Investigator(store, reranker, cfg, guard)
     judge = Judge(llm)
 
-    logger.info("[%s] screening matched_event for prompt injection", execution_id)
+    _guard_log.info("[%s] screening matched_event for prompt injection", execution_id)
     event_score = guard.score_event(alert.get("matched_event", {}))
     if event_score >= cfg.injection_guard.threshold:
-        logger.warning("[%s] injection suspected in matched_event (score=%.2f)", execution_id, event_score)
+        _guard_log.warning("[%s] injection suspected in matched_event (score=%.2f)", execution_id, event_score)
         audit.log(execution_id, "injection_suspected", source="matched_event", score=event_score)
 
-    logger.info("[%s] planning (LLM)...", execution_id)
+    _planner_log.info("[%s] planning (LLM)...", execution_id)
     plan = planner.plan(alert)
-    logger.info(
+    _planner_log.info(
         "[%s] plan ready: %d subquestions, needs_retrieval=%s",
         execution_id,
         len(plan.subquestions),
         plan.needs_retrieval,
     )
     for i, question in enumerate(plan.subquestions, start=1):
-        logger.info("[%s]   subquestion %d: %s", execution_id, i, question)
+        _planner_log.info("[%s]   subquestion %d: %s", execution_id, i, question)
     for i, question in enumerate(plan.remediation, start=1):
-        logger.info("[%s]   remediation %d: %s", execution_id, i, question)
+        _planner_log.info("[%s]   remediation %d: %s", execution_id, i, question)
     audit.log(
         execution_id,
         "plan_created",
@@ -200,7 +207,7 @@ def investigate_alert(
     anchor = _event_anchor(alert)
     anchor_from_start = not plan.tecnicas
     if anchor and anchor_from_start:
-        logger.info("[%s] no MITRE technique; anchoring retrieval to event: %r", execution_id, anchor)
+        _investigator_log.info("[%s] no MITRE technique; anchoring retrieval to event: %r", execution_id, anchor)
 
     # Remediation queries are retrieved once, routed to playbooks/runbooks (captured before
     # the loop reassigns `plan` during replanning).
@@ -221,15 +228,15 @@ def investigate_alert(
         for question in plan.subquestions:
             tec = plan.tecnicas or None
             query = f"{question} {anchor}".strip() if (anchor_from_start and anchor) else question
-            logger.info("[%s]   query: %r (filter tecnicas=%s)", execution_id, query, tec)
+            _investigator_log.info("[%s]   query: %r (filter tecnicas=%s)", execution_id, query, tec)
             evidence = investigator.investigate(query, tecnicas=tec)
             if not evidence.scored and tec and anchor:
                 # Technique filter excluded everything (e.g. technique not in corpus):
                 # fall back to an unfiltered, event-anchored search.
                 anchored = f"{question} {anchor}".strip()
-                logger.info("[%s]   no hits with filter; retrying anchored: %r", execution_id, anchored)
+                _investigator_log.info("[%s]   no hits with filter; retrying anchored: %r", execution_id, anchored)
                 evidence = investigator.investigate(anchored, tecnicas=None)
-            logger.info(
+            _investigator_log.info(
                 "[%s]   -> %d chunks, top score=%.3f%s",
                 execution_id,
                 len(evidence.scored),
@@ -239,7 +246,7 @@ def investigate_alert(
             flagged_total += len(evidence.flagged)
             collected.extend(evidence.scored)
         best_score = max((item.score for item in collected), default=0.0)
-        logger.info(
+        _investigator_log.info(
             "[%s] iteration %d: %d chunks collected, best score=%.3f",
             execution_id,
             iteration,
@@ -248,13 +255,13 @@ def investigate_alert(
         )
         if any(item.score >= cfg.evidence.min_rerank_score for item in collected):
             break
-        logger.info("[%s] evidence below threshold; replanning with a broader query", execution_id)
+        _planner_log.info("[%s] evidence below threshold; replanning with a broader query", execution_id)
         plan = planner.replan(alert)
 
     # Remediation pass: route to playbooks/runbooks so the response steps come from
     # operational guidance, not from generic MITRE prose.
     if remediation_queries:
-        logger.info(
+        _investigator_log.info(
             "[%s] remediation retrieval: %d queries (filter fuentes=playbook,runbook)",
             execution_id,
             len(remediation_queries),
@@ -262,9 +269,9 @@ def investigate_alert(
     remediation_collected: list[ScoredChunk] = []
     for question in remediation_queries:
         query = f"{question} {anchor}".strip() if anchor else question
-        logger.info("[%s]   remediation query: %r", execution_id, query)
+        _investigator_log.info("[%s]   remediation query: %r", execution_id, query)
         evidence = investigator.investigate(query, fuentes=["playbook", "runbook"])
-        logger.info(
+        _investigator_log.info(
             "[%s]   -> %d chunks, top score=%.3f",
             execution_id,
             len(evidence.scored),
@@ -299,10 +306,10 @@ def investigate_alert(
 
     report = _write_report(llm, alert, context)
 
-    logger.info("[%s] checking grounding (LLM judge)...", execution_id)
+    _judge_log.info("[%s] checking grounding (LLM judge)...", execution_id)
     verdict = enforce_grounding(report, context, judge)
     if not verdict.grounded:
-        logger.warning("[%s] grounding check failed: %s", execution_id, verdict.reason)
+        _judge_log.warning("[%s] grounding check failed: %s", execution_id, verdict.reason)
         audit.log(execution_id, "grounding_failed", reason=verdict.reason)
 
     # Present the report to the analyst BEFORE proposing/approving any action, so the
@@ -354,10 +361,10 @@ def _remediate(
     """Propose a response plan (Remediator) and run it through the approval guardrail."""
     if tools is None:
         return []
-    logger.info("[%s] proposing response actions (Remediator, LLM)...", execution_id)
+    _remediator_log.info("[%s] proposing response actions (Remediator, LLM)...", execution_id)
     proposed = Remediator(llm, tools).propose(alert, report)
     for action in proposed:
-        logger.info(
+        _remediator_log.info(
             "[%s]   proposed: %s %s (destructive=%s)",
             execution_id,
             action.tool,

@@ -1,5 +1,5 @@
-from src.guardrails.injection_guard import InjectionGuard, score_text
-from src.models import Chunk
+from triage_copilot.validation.injection_guard import InjectionGuard, score_text
+from triage_copilot.investigation.models import Chunk
 
 
 def test_flags_injection():

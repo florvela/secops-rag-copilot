@@ -1,5 +1,5 @@
-from src.models import Chunk
-from src.retrieval.metadata_filter import allowed_ids, version_rank
+from triage_copilot.investigation.models import Chunk
+from triage_copilot.rag.metadata_filter import allowed_ids, version_rank
 
 
 def _chunk(cid: str, tecnicas: list[str], fuente: str) -> Chunk:

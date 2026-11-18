@@ -1,6 +1,6 @@
-from src.agents.remediator import ProposedAction
-from src.guardrails.human_approval import run_with_approval
-from src.mcp_tools import build_default_registry
+from triage_copilot.agents.remediator import ProposedAction
+from triage_copilot.investigation.approval import run_with_approval
+from app.adapters.local.mock_tools import build_default_registry
 
 
 class FakeAudit:

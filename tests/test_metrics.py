@@ -1,4 +1,4 @@
-from src.eval import metrics
+from app.eval import metrics
 
 RETRIEVED = ["A", "X", "B"]
 RELEVANT = {"A", "B", "C"}

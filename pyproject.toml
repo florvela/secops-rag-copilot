@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "triage-copilot"
+version = "0.1.0"
+description = "Grounded, multi-agent SOC alert triage and investigation copilot (hybrid RAG + guardrails)."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.32.1",
+    "pydantic==2.10.3",
+    "python-dotenv==1.0.1",
+    "rank-bm25==0.2.2",
+    "sentence-transformers==3.3.1",
+    "torch==2.6.0",
+    "transformers==4.47.1",
+    "numpy==2.1.3",
+    "pdfplumber==0.11.4",
+    "PyYAML==6.0.3",
+    "requests==2.32.3",
+]
+
+[project.optional-dependencies]
+# LangChain LLM backend (set LLM_BACKEND=langchain). Mirrors requirements-langchain.txt.
+langchain = [
+    "langchain-core>=0.3,<0.4",
+    "langchain-ollama>=0.2,<0.4",
+]
+dev = [
+    "pytest==8.3.4",
+]
+
+[project.scripts]
+triage-copilot = "app.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

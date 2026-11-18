@@ -1,4 +1,4 @@
-from src.agents.judge import Judge
+from triage_copilot.agents.judge import Judge
 
 
 class StubLLM:

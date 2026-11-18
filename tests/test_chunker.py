@@ -1,5 +1,5 @@
-from src.ingest.chunker import chunk_section
-from src.models import Section
+from triage_copilot.rag.chunking import chunk_section
+from triage_copilot.investigation.models import Section
 
 
 def _section(n_words: int) -> Section:

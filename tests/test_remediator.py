@@ -1,5 +1,5 @@
-from src.agents.remediator import Remediator
-from src.mcp_tools import build_default_registry
+from triage_copilot.agents.remediator import Remediator
+from app.adapters.local.mock_tools import build_default_registry
 
 
 class StubLLM:

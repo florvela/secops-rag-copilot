@@ -46,7 +46,7 @@ guard and alert schema validation.
 ## 2. Configuration loads
 
 ```bash
-python -m src.config
+python -m app.config
 ```
 
 Prints the merged configuration (`config/config.json` + `.env`).
@@ -54,7 +54,7 @@ Prints the merged configuration (`config/config.json` + `.env`).
 ## 3. Retrieval evaluation
 
 ```bash
-python -m src.eval.run
+python -m app.eval.run
 ```
 
 Runs the golden queries and reports precision@k, recall@k, nDCG@k (k=5,10) and MRR, both as a
@@ -63,7 +63,7 @@ baseline and with the MITRE technique filter applied. First run downloads the mo
 ## 4. Injection-detection evaluation
 
 ```bash
-python -m src.eval.injection_eval
+python -m app.eval.injection_eval
 ```
 
 Scores the labelled adversarial/benign samples and reports detection rate and false-positive rate.
@@ -72,7 +72,7 @@ This one runs fully offline (no models needed).
 ## 5. End-to-end on a single alert (CLI)
 
 ```bash
-python -m src.cli fixtures/alerts/mfa_console_signin.json
+python -m app.cli fixtures/alerts/mfa_console_signin.json
 ```
 
 Validates the alert, runs the multi-agent investigation and prints the report, citations and run
@@ -90,13 +90,13 @@ To see the injection guard in action, use the adversarial fixture: the suspiciou
 is logged as `injection_suspected` in `logs/security.jsonl`.
 
 ```bash
-python -m src.cli fixtures/alerts/mfa_console_signin_injection.json
+python -m app.cli fixtures/alerts/mfa_console_signin_injection.json
 ```
 
 ## 6. API
 
 ```bash
-uvicorn src.api.main:app --reload
+uvicorn app.api.main:app --reload
 ```
 
 In another terminal:

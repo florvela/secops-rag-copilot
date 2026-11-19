@@ -1,4 +1,4 @@
-from src.mcp_tools import build_default_registry
+from app.adapters.local.mock_tools import build_default_registry
 
 _EXPECTED = {
     "disable_credential",

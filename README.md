@@ -1,4 +1,4 @@
-# secops-rag-copilot
+# triage-copilot
 
 A multi-agent security-alert investigation copilot with hybrid RAG over a security
 knowledge corpus (MITRE ATT&CK prose, playbooks, runbooks, historical incidents).
@@ -37,10 +37,12 @@ grounding status) in hand; a closure note at the end summarizes the actions actu
 
 - **Planner / Investigator / Judge / Remediator** — four agents; the Remediator turns the
   grounded report into a proposed response plan by selecting from the available tools.
-- **MCP tools** (`src/mcp_tools/`) — generic SOC response actions with a JSON schema and a
-  `destructive` flag. Implementations are **mocked** (simulated results, no real systems).
-  They can optionally be served over a real MCP transport (`src/mcp_tools/server.py`, FastMCP).
-- **Human-in-the-loop** (`src/guardrails/human_approval.py`) — destructive actions require
+- **MCP tools** — generic SOC response actions with a JSON schema and a `destructive` flag.
+  The registry shape is library code (`triage_copilot/investigation/tools.py`); the **mocked**
+  implementations (simulated results, no real systems) are a local adapter
+  (`app/adapters/local/mock_tools.py`). They can optionally be served over a real MCP transport
+  (`app/adapters/local/mcp_server.py`, FastMCP).
+- **Human-in-the-loop** (`triage_copilot/investigation/approval.py`) — destructive actions require
   approval (interactive in the CLI; returned as `pending_approval` over the API), mitigating
   excessive agency. Every proposal and decision is written to the audit log.
 
@@ -69,8 +71,8 @@ Or do it manually:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-langchain.txt   # optional LangChain backend
+pip install -e .                 # installs the triage_copilot + app packages
+pip install -e '.[langchain]'    # optional LangChain backend
 cp .env.example .env
 python scripts/fetch_mitre.py
 ```
@@ -97,21 +99,34 @@ The rest of the system (agents, guardrails, API) is unchanged by the choice.
 
 ## Project layout
 
+The code is split into a portable AI **library** (`triage_copilot/`) and a deployable
+**app** layer (`app/`, wiring + adapters). The library never imports from the app.
+
 ```
 src/
-  api/          FastAPI endpoint
-  ingest/       document parsing + chunking
-  retrieval/    BM25, embeddings, RRF fusion, re-ranking, metadata filtering
-  agents/       planner, investigator, judge, remediator + orchestration
-  guardrails/   input validation, injection screening, grounding, human approval
-  mcp_tools/    mock remediation tools (registry + optional FastMCP server)
-  security/     audit log (JSONL)
-  eval/         metrics + golden set
+  triage_copilot/              portable AI library (no I/O, no app imports)
+    rag/                       BM25, embeddings, RRF fusion, re-ranking, chunking, indexing
+    investigation/             models, orchestrator, ports (Protocols), tools, approval, audit sink
+    agents/                    planner, investigator, judge, remediator
+    prompts/                   extracted system prompts
+    llm/                       LLM client (native Ollama + LangChain backend)
+    validation/                input validation, injection screening, grounding
+    config.py                  Pydantic config schema (no loading)
+    service.py                 public entry: investigate_alert(...)
+  app/                         deployable layer (wiring + adapters)
+    api/                       FastAPI endpoint
+    cli.py                     CLI entrypoint
+    config.py                  config/env loading (get_settings)
+    logging_setup.py           colored per-module logging
+    eval/                      metrics + golden set
+    adapters/
+      local/                   corpus loader, mock tools, cli approver, audit log, MCP server
+      prod/                    (placeholder: pgvector retriever, real response tools)
 config/         config.json, activity_mitre_map.json
 corpus/         knowledge documents (MITRE, playbooks, runbooks)
-  playbooks/    response playbooks converted from AiSOC
+  playbooks/    response playbooks (markdown; retrieved via `fuente: playbook`)
 fixtures/       simulated input alerts (JSON)
-scripts/        data builders (fetch MITRE, build MITRE map, convert playbooks)
+scripts/        data builders (fetch MITRE, build MITRE map)
 tests/          tests for the critical modules
 docs/           deliverables (report, diagrams)
 ```
@@ -126,9 +141,9 @@ top of each script):
 - `python scripts/build_mitre_map.py` → `config/activity_mitre_map.json`. Maps AWS
   `activity_name` (e.g. `DeleteTrail`) to MITRE techniques. Alerts that arrive without a
   technique are enriched from this map during input validation, so retrieval has an anchor.
-- `python scripts/convert_playbooks.py` → `corpus/playbooks/*.md`. Converts the AiSOC
-  response playbooks (YAML) into corpus markdown (`fuente: playbook`); the remediation
-  retrieval pass routes to these.
+- The AiSOC response playbooks were converted (YAML → corpus markdown, `fuente: playbook`) and
+  the results are committed under `corpus/playbooks/*.md`; the remediation retrieval pass routes
+  to these. The one-off conversion script is not included in the repo.
 
 ## Testing
 

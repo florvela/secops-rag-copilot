@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot local setup for secops-rag-copilot.
+# One-shot local setup for triage-copilot.
 # Creates the virtualenv, installs dependencies, prepares .env and downloads
 # the real MITRE ATT&CK data. Safe to re-run (idempotent).
 
@@ -27,10 +27,10 @@ fi
 # --- 3. Install dependencies ------------------------------------------------
 echo "Installing dependencies ..."
 ./.venv/bin/python -m pip install --quiet --upgrade pip
-./.venv/bin/python -m pip install -r requirements.txt
-# Also install the LangChain backend so both run modes are ready after setup.
-# The default backend stays native (Ollama); switch with LLM_BACKEND in .env.
-./.venv/bin/python -m pip install -r requirements-langchain.txt
+# Editable install of the triage_copilot + app packages (deps come from pyproject.toml).
+# The [langchain] extra adds the LangChain backend so both run modes are ready after setup;
+# the default backend stays native (Ollama), switch with LLM_BACKEND in .env.
+./.venv/bin/python -m pip install -e '.[langchain]'
 
 # --- 4. Prepare the local .env (only if missing) ----------------------------
 # .env is gitignored; it holds paths and the local LLM (Ollama) settings.
@@ -50,4 +50,4 @@ echo ""
 echo "Setup complete. Next steps:"
 echo "  source .venv/bin/activate"
 echo "  pytest -q"
-echo "  python -m src.cli fixtures/alerts/mfa_console_signin.json"
+echo "  python -m app.cli fixtures/alerts/mfa_console_signin.json"

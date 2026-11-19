@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from src.guardrails.input_validation import validate_alert
+from triage_copilot.validation.input_validation import validate_alert
 
 VALID = json.loads(Path("fixtures/alerts/mfa_console_signin.json").read_text(encoding="utf-8"))
 

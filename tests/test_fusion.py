@@ -1,4 +1,4 @@
-from src.retrieval.fusion import reciprocal_rank_fusion
+from triage_copilot.rag.fusion import reciprocal_rank_fusion
 
 
 def test_rrf_rewards_consensus():

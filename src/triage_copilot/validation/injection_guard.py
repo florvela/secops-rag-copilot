@@ -29,12 +29,31 @@ def score_text(text: str) -> float:
     return min(1.0, matches / 2.0)
 
 
+def matched_spans(text: str, max_len: int = 80) -> list[str]:
+    """The substrings that tripped a pattern — what made the text suspicious.
+
+    Each span is truncated so a greedy pattern can't dump half a JSON line into the log.
+    """
+    if not text:
+        return []
+    spans = []
+    for pattern in _COMPILED:
+        m = pattern.search(text)
+        if m:
+            span = m.group(0).strip()
+            spans.append(span if len(span) <= max_len else span[:max_len] + "…")
+    return spans
+
+
 @dataclass
 class InjectionGuard:
     threshold: float
 
     def is_flagged(self, text: str) -> bool:
         return score_text(text) >= self.threshold
+
+    def event_matches(self, matched_event: dict) -> list[str]:
+        return matched_spans(json.dumps(matched_event))
 
     def screen_chunks(
         self, chunks: list[Chunk]

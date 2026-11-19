@@ -13,7 +13,7 @@ from triage_copilot.agents.remediator import Remediator
 from triage_copilot.config import PipelineConfig
 from triage_copilot.validation.grounding import enforce_grounding
 from triage_copilot.investigation.approval import ActionOutcome, Approver, run_with_approval
-from triage_copilot.validation.injection_guard import InjectionGuard
+from triage_copilot.validation.injection_guard import InjectionGuard, matched_spans
 from triage_copilot.investigation.ports import AuditSink, ReportCallback
 from triage_copilot.investigation.tools import ToolRegistry
 from triage_copilot.prompts.report import CLOSURE_SYSTEM as _CLOSURE_SYSTEM
@@ -42,6 +42,29 @@ class InvestigationResult:
     execution_id: str
     actions: list[ActionOutcome] = field(default_factory=list)
     closure: str = ""
+
+
+def _record_flagged(audit: AuditSink, execution_id: str, flagged, phase: str) -> None:
+    """Log + audit each retrieved chunk the guard flagged (indirect injection in the corpus)."""
+    for chunk, score in flagged:
+        spans = matched_spans(chunk.text)
+        _guard_log.warning(
+            "[%s] injection suspected in retrieved chunk %s (score=%.2f, %s): %s",
+            execution_id,
+            chunk.doc_id,
+            score,
+            phase,
+            " | ".join(spans) if spans else chunk.text[:120],
+        )
+        audit.log(
+            execution_id,
+            "injection_suspected",
+            source="retrieved_chunk",
+            doc_id=chunk.doc_id,
+            score=score,
+            phase=phase,
+            matches=spans,
+        )
 
 
 def _dedup_top(scored: list[ScoredChunk], n: int) -> list[ScoredChunk]:
@@ -133,10 +156,23 @@ def investigate_alert(
     judge = Judge(llm)
 
     _guard_log.info("[%s] screening matched_event for prompt injection", execution_id)
-    event_score = guard.score_event(alert.get("matched_event", {}))
+    matched_event = alert.get("matched_event", {})
+    event_score = guard.score_event(matched_event)
     if event_score >= cfg.injection_guard.threshold:
-        _guard_log.warning("[%s] injection suspected in matched_event (score=%.2f)", execution_id, event_score)
-        audit.log(execution_id, "injection_suspected", source="matched_event", score=event_score)
+        spans = guard.event_matches(matched_event)
+        _guard_log.warning(
+            "[%s] injection suspected in matched_event (score=%.2f); triggered by: %s",
+            execution_id,
+            event_score,
+            " | ".join(spans) if spans else "(no span captured)",
+        )
+        audit.log(
+            execution_id,
+            "injection_suspected",
+            source="matched_event",
+            score=event_score,
+            matches=spans,
+        )
 
     _planner_log.info("[%s] planning (LLM)...", execution_id)
     plan = planner.plan(alert)
@@ -222,6 +258,7 @@ def investigate_alert(
                 evidence.top_score,
                 f", {len(evidence.flagged)} flagged" if evidence.flagged else "",
             )
+            _record_flagged(audit, execution_id, evidence.flagged, "investigation")
             flagged_total += len(evidence.flagged)
             collected.extend(evidence.scored)
         best_score = max((item.score for item in collected), default=0.0)
@@ -256,6 +293,7 @@ def investigate_alert(
             len(evidence.scored),
             evidence.top_score,
         )
+        _record_flagged(audit, execution_id, evidence.flagged, "remediation")
         flagged_total += len(evidence.flagged)
         remediation_collected.extend(evidence.scored)
 

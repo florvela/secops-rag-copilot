@@ -55,6 +55,13 @@ class LLMSettings(BaseModel):
     provider: str
     base_url: str
     model: str
+    # Bedrock-only (ignored by the Ollama backends).
+    region: str | None = None
+    guardrail_id: str | None = None
+    guardrail_version: str | None = None
+    max_tokens: int = 1024
+    # Optional per-role model map (e.g. {"report": "...pro...", "planner": "...micro..."}).
+    models: dict[str, str] = {}
 
 
 class Settings(BaseModel):

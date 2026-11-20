@@ -57,12 +57,24 @@ class LocalLLM:
         return _extract_json(self.generate(prompt, system=system))
 
 
-def _make_client(backend: str, settings) -> LLMClient:
+def _make_client(backend: str, settings, model: str) -> LLMClient:
     if backend == "langchain":
         from triage_copilot.llm.langchain_client import LangChainLLM
 
-        return LangChainLLM(settings.llm.base_url, settings.llm.model)
-    return LocalLLM(settings.llm.base_url, settings.llm.model)
+        return LangChainLLM(settings.llm.base_url, model)
+    return LocalLLM(settings.llm.base_url, model)
+
+
+def _build_bedrock(settings, model: str):
+    from triage_copilot.llm.bedrock_client import BedrockLLM
+
+    return BedrockLLM(
+        model,
+        region=getattr(settings.llm, "region", None),
+        guardrail_id=getattr(settings.llm, "guardrail_id", None),
+        guardrail_version=getattr(settings.llm, "guardrail_version", None),
+        max_tokens=getattr(settings.llm, "max_tokens", 1024),
+    )
 
 
 def _probe(client: LLMClient) -> None:
@@ -70,20 +82,38 @@ def _probe(client: LLMClient) -> None:
     client.generate("ping", temperature=0.0)
 
 
-def build_llm(settings) -> LLMClient:
+def _resolve_model(settings, role: str | None) -> str:
+    """Pick the model for a role from the optional per-role map, else the default."""
+    models = getattr(settings.llm, "models", None) or {}
+    if role and role in models:
+        return models[role]
+    return settings.llm.model
+
+
+def build_llm(settings, role: str | None = None) -> LLMClient:
     """Return a working LLM client.
 
-    The backend selected in ``.env`` (``native`` by default) is tried first; if it
-    cannot be reached, the other backend is tried automatically. If neither answers,
-    ``LLMUnavailable`` is raised.
+    With ``LLM_PROVIDER=bedrock`` a :class:`BedrockLLM` is returned (no live probe,
+    to avoid a token call on every cold start). Otherwise the ``native``/``langchain``
+    Ollama backends are tried in order and the reachable one is returned; if neither
+    answers, ``LLMUnavailable`` is raised.
+
+    ``role`` selects a per-role model from ``settings.llm.models`` when present
+    (e.g. a cheap model for planner/judge, a larger one for the report), falling
+    back to ``settings.llm.model``.
     """
+    model = _resolve_model(settings, role)
+
+    if getattr(settings.llm, "provider", "ollama").lower() == "bedrock":
+        return _build_bedrock(settings, model)
+
     preferred = settings.llm.backend.lower()
     order = ["langchain", "native"] if preferred == "langchain" else ["native", "langchain"]
 
     errors: list[str] = []
     for backend in order:
         try:
-            client = _make_client(backend, settings)
+            client = _make_client(backend, settings, model)
             _probe(client)
             return client
         except LLMUnavailable as exc:

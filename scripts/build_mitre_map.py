@@ -13,18 +13,20 @@ Re-run after updating the AiSOC checkout:
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import re
 from datetime import date
 from pathlib import Path
 
 import yaml
 
-# Source: AiSOC detections (https://github.com — MIT License). Adjust if the checkout
-# lives elsewhere.
-AISOC_DETECTIONS = Path("/Users/prisci/Documents/MIA/NLP3/AiSOC/detections")
+# Source: AiSOC detections (https://github.com — MIT License). The checkout location
+# is configurable so this runs outside any one machine (env AISOC_DETECTIONS or --detections).
+_DEFAULT_DETECTIONS = os.getenv("AISOC_DETECTIONS", "AiSOC/detections")
 DOMAINS = ("cloud", "identity")
-OUTPUT = Path("config/activity_mitre_map.json")
+_DEFAULT_OUTPUT = os.getenv("MITRE_MAP_OUTPUT", "config/activity_mitre_map.json")
 
 _EVENT_RE = re.compile(r'event_name\s*(?:==|IN)\s*(\[[^\]]*\]|"[^"]+")')
 _NAME_RE = re.compile(r'"([A-Za-z0-9_:.-]+)"')
@@ -51,13 +53,13 @@ def _event_names(condition: str) -> list[str]:
     return names
 
 
-def build() -> None:
+def build(detections: Path, output: Path) -> None:
     mapping: dict[str, set[str]] = {}
     rules = 0
     without_event = 0
 
     for domain in DOMAINS:
-        for path in sorted((AISOC_DETECTIONS / domain).glob("*.yaml")):
+        for path in sorted((detections / domain).glob("*.yaml")):
             try:
                 doc = yaml.safe_load(path.read_text(encoding="utf-8"))
             except yaml.YAMLError:
@@ -88,13 +90,23 @@ def build() -> None:
         **result,
     }
 
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(
-        f"wrote {OUTPUT} — {len(result)} events mapped from {rules} rules "
+        f"wrote {output} — {len(result)} events mapped from {rules} rules "
         f"({without_event} without a literal event_name)"
     )
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build the activity -> MITRE technique map.")
+    parser.add_argument("--detections", default=_DEFAULT_DETECTIONS,
+                        help="path to the AiSOC detections checkout (env AISOC_DETECTIONS)")
+    parser.add_argument("--output", default=_DEFAULT_OUTPUT,
+                        help="output JSON path (env MITRE_MAP_OUTPUT)")
+    args = parser.parse_args()
+    build(Path(args.detections), Path(args.output))
+
+
 if __name__ == "__main__":
-    build()
+    main()
